@@ -27,7 +27,8 @@ import type {
 } from "@/interfaces"
 import Copy from "@/components/Copy.vue"
 import Diagram from "@/components/Diagram.vue"
-import PlanNode from "@/components/PlanNode.vue"
+import type PlanNode from "@/components/PlanNode.vue"
+import PlanNodeContainer from "@/components/PlanNodeContainer.vue"
 import Stats from "@/components/Stats.vue"
 import { scrollChildIntoParentView } from "@/services/help-service"
 import { PlanService } from "@/services/plan-service"
@@ -50,6 +51,14 @@ import { fas } from "@fortawesome/free-solid-svg-icons"
 import { far } from "@fortawesome/free-regular-svg-icons"
 import { fab } from "@fortawesome/free-brands-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"
+import * as d3 from "d3"
+import {
+  flextree,
+  type FlexHierarchyPointLink,
+  type FlexHierarchyPointNode,
+} from "d3-flextree"
+
+import { linkVertical } from "d3-shape"
 
 // Add all icons to the library
 library.add(fas, far, fab)
@@ -94,6 +103,31 @@ const planService = new PlanService()
 
 const helpService = new HelpService()
 const getHelpMessage = helpService.getHelpMessage
+
+const paddingBottom = 50
+const transform = ref("")
+const scale = ref(1)
+const edgeWeight = computed(() => {
+  return d3.scaleLinear().domain([0, planStats.maxRows]).range([1, 30])
+})
+const zoomListener = d3
+  .zoom()
+  .scaleExtent([0.1, 3])
+  .on("zoom", function (e) {
+    transform.value = e.transform
+    scale.value = e.transform.k
+  })
+const layout = flextree({
+  nodeSize: (node: d3.HierarchyNode<Node>) => {
+    if (node.data.size) {
+      return [node.data.size[0], node.data.size[1] + paddingBottom]
+    }
+    return [0, 0]
+  },
+  spacing: (nodeA: d3.HierarchyNode<Node>, nodeB: d3.HierarchyNode<Node>) =>
+    Math.pow(nodeA.path(nodeB).length, 1.5),
+})
+const tree = ref(layout.hierarchy({}))
 
 onBeforeMount(() => {
   const savedOptions = localStorage.getItem("viewOptions")
@@ -146,11 +180,21 @@ onBeforeMount(() => {
     onHashChange()
   })
   window.addEventListener("hashchange", onHashChange)
+
+  const _h = layout.hierarchy(planJson.Plan, (v: Node) => v.Plans)
+  layout(_h)
+  tree.value = _h
 })
 
 onMounted(() => {
   handleScroll()
   emitter.on("clickcte", onClickCte)
+  d3.select(planEl.value.$el).call(zoomListener)
+  nextTick(() => {
+    const rect = planEl.value.$el.getBoundingClientRect()
+    const transX = rect.width / 2
+    zoomListener.translateBy(d3.select(planEl.value.$el), transX, 10)
+  })
 })
 
 onBeforeUnmount(() => {
@@ -162,6 +206,18 @@ watch(viewOptions, onViewOptionsChanged)
 function onViewOptionsChanged() {
   localStorage.setItem("viewOptions", JSON.stringify(viewOptions))
 }
+
+const lineGen = computed(() => {
+  return function (link: FlexHierarchyPointLink<object>) {
+    const source = link.source
+    const target = link.target
+    const pathD = linkVertical()({
+      source: [source.x, source.y + source.ySize - paddingBottom],
+      target: [target.x, target.y],
+    })
+    return pathD ? pathD : undefined
+  }
+})
 
 function onHashChange(): void {
   const reg = /#([a-zA-Z]*)(\/node\/([0-9]*))*/
@@ -188,6 +244,7 @@ provide("register", registerNode)
 provide("selectedNode", selectedNode)
 provide("highlightedNode", highlightedNode)
 provide("emitter", emitter)
+provide("updateNodeSize", updateNodeSize)
 
 function selectNode(nodeId: number) {
   selectedNode.value = nodeId
@@ -293,6 +350,20 @@ function onClickCte(subplanName: string): void {
     )
   })
   cmp && highlightEl(cmp.refs.outerEl, CenterMode.visible, HighlightMode.flash)
+}
+
+watch(
+  () =>
+    tree.value
+      .descendants()
+      .map((item: FlexHierarchyPointNode<Node>) => item.data.size),
+  () => {
+    layout(tree.value)
+  }
+)
+
+function updateNodeSize(node: Node, size: [number, number]) {
+  node.size = [size[0] / scale.value, size[1] / scale.value]
 }
 </script>
 
@@ -577,32 +648,30 @@ function onClickCte(subplanName: string): void {
                   ref="planEl"
                   class="plan d-flex flex-column flex-grow-1 grab-bing overflow-auto"
                 >
-                  <ul class="main-plan p-2 mb-0">
-                    <li>
-                      <plan-node
-                        :node="rootNode"
+                  <svg width="100%" height="100%">
+                    <g :transform="transform">
+                      <!-- Links -->
+                      <path
+                        v-for="(link, index) in tree.links()"
+                        :key="`link${index}`"
+                        :d="lineGen(link)"
+                        stroke="grey"
+                        :stroke-width="
+                          edgeWeight(link.target.data['Actual Rows'])
+                        "
+                        stroke-linecap="square"
+                        fill="none"
+                      />
+                      <plan-node-container
+                        v-for="(item, index) in tree.descendants()"
+                        :key="index"
+                        :node="item"
                         :plan="plan"
                         :viewOptions="viewOptions"
-                        v-if="plan && rootNode"
                         ref="root"
-                      >
-                      </plan-node>
-                    </li>
-                  </ul>
-                  <ul
-                    class="init-plans p-2 mb-0"
-                    v-if="plan && plan.ctes && plan.ctes.length"
-                  >
-                    <li v-for="node in plan.ctes" :key="node.nodeId">
-                      <plan-node
-                        :node="node"
-                        :plan="plan"
-                        :viewOptions="viewOptions"
-                        ref="root"
-                      >
-                      </plan-node>
-                    </li>
-                  </ul>
+                      ></plan-node-container>
+                    </g>
+                  </svg>
                 </pane>
               </splitpanes>
             </div>
@@ -783,4 +852,8 @@ function onClickCte(subplanName: string): void {
 @import "../assets/scss/pev2";
 @import "splitpanes/dist/splitpanes.css";
 @import "highlight.js/scss/stackoverflow-light.scss";
+
+path {
+  opacity: 0.5;
+}
 </style>

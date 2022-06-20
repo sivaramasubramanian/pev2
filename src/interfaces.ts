@@ -67,7 +67,8 @@ import { EstimateDirection, NodeProp } from "@/enums"
 
 // Class to create nodes when parsing text
 export class Node {
-  nodeId!: number;
+  nodeId!: number
+  size!: [number, number];
   ["Options"]?: Options;
   ["Timing"]?: Timing;
   ["Settings"]?: Settings;
@@ -116,6 +117,7 @@ export class Node {
     | string
     | string[]
     | undefined
+    | [number, number]
   constructor(type?: string) {
     if (!type) {
       return

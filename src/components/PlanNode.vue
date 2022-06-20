@@ -5,6 +5,7 @@ import {
   getCurrentInstance,
   inject,
   onBeforeMount,
+  onMounted,
   reactive,
   ref,
   watch,
@@ -26,7 +27,6 @@ import {
   HighlightType,
   NodeProp,
   nodePropTypes,
-  Orientation,
   PropType,
   ViewMode,
   WorkerProp,
@@ -51,6 +51,8 @@ const el = ref<Element | null>(null) // The .plan-node Element
 const outerEl = ref<Element | null>(null) // The outer Element, useful for CTE and subplans
 
 const emitter = inject<Emitter<Events>>("emitter")
+const updateNodeSize =
+  inject<(node: Node, size: [number, number]) => null>("updateNodeSize")
 
 const viewOptions = reactive<ViewOptions>(props.viewOptions)
 const node = reactive<Node>(props.node)
@@ -152,6 +154,10 @@ onBeforeMount(() => {
   plannerRowEstimateDirection.value = node[NodeProp.PLANNER_ESTIMATE_DIRECTION]
   plannerRowEstimateValue.value = node[NodeProp.PLANNER_ESTIMATE_FACTOR]
   register(getCurrentInstance() as object)
+})
+
+onMounted(async () => {
+  updateSize()
 })
 
 function calculateDuration() {
@@ -457,6 +463,17 @@ function formattedProp(propName: keyof typeof NodeProp) {
   const value = node[property]
   return formatNodeProp(property, value)
 }
+
+function updateSize() {
+  const rect = outerEl.value?.getBoundingClientRect()
+  if (rect) {
+    updateNodeSize?.(node, [rect.width, rect.height])
+  }
+}
+
+watch(showDetails, () => {
+  window.setTimeout(updateSize, 1)
+})
 </script>
 
 <template>
@@ -464,8 +481,6 @@ function formattedProp(propName: keyof typeof NodeProp) {
     ref="outerEl"
     :class="{
       subplan: node[NodeProp.SUBPLAN_NAME],
-      'd-flex flex-column align-items-center':
-        viewOptions.orientation == Orientation.TWOD,
     }"
   >
     <h4 v-if="node[NodeProp.SUBPLAN_NAME]">
@@ -1185,11 +1200,5 @@ function formattedProp(propName: keyof typeof NodeProp) {
         </div>
       </div>
     </div>
-    <ul v-if="plans" :class="['node-children', { collapsed: collapsed }]">
-      <li v-for="subnode in plans" :key="subnode.nodeId">
-        <plan-node :node="subnode" :plan="plan" :viewOptions="viewOptions">
-        </plan-node>
-      </li>
-    </ul>
   </div>
 </template>
