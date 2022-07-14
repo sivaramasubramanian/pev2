@@ -344,6 +344,99 @@ function formattedProp(propName: keyof typeof NodeProp) {
     <div class="plan-node-body card">
       <div class="bg-light">
         <div class="card-header border-top">
+          <header class="mb-0">
+            <h4 class="text-body">
+              <a
+                class="font-weight-normal small"
+                :href="'#plan/node/' + node.nodeId"
+                @click.stop
+                >#{{ node.nodeId }}</a
+              >
+              {{ getNodeName() }}
+            </h4>
+            <div class="float-right">
+              <span
+                v-if="durationClass"
+                :class="
+                  'p-0  d-inline-block mb-0 ml-1 text-nowrap alert ' +
+                  durationClass
+                "
+                v-tippy="'Slow'"
+                ><font-awesome-icon
+                  fixed-width
+                  icon="clock"
+                ></font-awesome-icon>
+              </span>
+              <span
+                v-if="costClass"
+                :class="
+                  'p-0  d-inline-block mb-0 ml-1 text-nowrap alert ' + costClass
+                "
+                v-tippy="'Cost is high'"
+                ><font-awesome-icon
+                  fixed-width
+                  icon="dollar-sign"
+                ></font-awesome-icon
+              ></span>
+              <span
+                v-if="estimationClass"
+                :class="
+                  'p-0  d-inline-block mb-0 ml-1 text-nowrap alert ' +
+                  estimationClass
+                "
+                v-tippy="'Bad estimation for number of rows'"
+                ><font-awesome-icon
+                  fixed-width
+                  icon="thumbs-down"
+                ></font-awesome-icon
+              ></span>
+              <span
+                v-if="rowsRemovedClass"
+                :class="
+                  'p-0  d-inline-block mb-0 ml-1 text-nowrap alert ' +
+                  rowsRemovedClass
+                "
+                v-tippy="filterTooltip"
+              >
+                <font-awesome-icon
+                  fixed-width
+                  icon="filter"
+                ></font-awesome-icon>
+              </span>
+              <span
+                v-if="heapFetchesClass"
+                :class="
+                  'p-0  d-inline-block mb-0 ml-1 text-nowrap alert ' +
+                  heapFetchesClass
+                "
+                v-tippy="{
+                  arrow: true,
+                  content: 'Heap Fetches number is high',
+                }"
+              >
+                <font-awesome-icon
+                  fixed-width
+                  class="exchange-alt"
+                ></font-awesome-icon>
+              </span>
+              <span
+                v-if="rowsRemoved && !rowsRemovedClass"
+                class="p-0 d-inline-block mb-0 ml-1 text-nowrap"
+                v-tippy="filterTooltip"
+              >
+                <font-awesome-icon
+                  fixed-width
+                  icon="filter"
+                  class="text-muted"
+                ></font-awesome-icon>
+              </span>
+            </div>
+            <span>
+              <span class="node-duration text-warning" v-if="isNeverExecuted">
+                Never executed
+              </span>
+            </span>
+          </header>
           <div
             v-if="getNodeTypeDescription(node[NodeProp.NODE_TYPE])"
             class="node-description"
