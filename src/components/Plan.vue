@@ -40,7 +40,6 @@ import {
   HighlightType,
   NodeProp,
   Orientation,
-  ViewMode,
 } from "@/enums"
 import { duration, durationClass, json_, pgsql_ } from "@/filters"
 
@@ -88,7 +87,6 @@ const viewOptions = reactive({
   showHighlightBar: false,
   showPlanStats: true,
   highlightType: HighlightType.NONE,
-  viewMode: ViewMode.FULL,
   orientation: Orientation.TWOD,
   showDiagram: true,
   diagramWidth: 20,
@@ -112,7 +110,7 @@ const zoomListener = d3
     transform.value = e.transform
     scale.value = e.transform.k
   })
-const nodeSize: [number, number] = [250, 80]
+const nodeSize: [number, number] = [200, 80]
 const layoutRootNode = ref<null | d3.HierarchyPointNode<Node>>(null)
 
 onBeforeMount(() => {
@@ -414,7 +412,7 @@ function onClickCte(subplanName: string): void {
         <!-- Plan tab -->
         <div
           class="d-flex flex-column flex-grow-1 overflow-hidden"
-          :class="[viewOptions.viewMode, viewOptions.orientation]"
+          :class="[viewOptions.orientation]"
         >
           <div
             class="plan-stats flex-shrink-0 d-flex border-bottom border-top form-inline"
@@ -647,6 +645,7 @@ function onClickCte(subplanName: string): void {
                         :node="item"
                         :plan="plan"
                         :viewOptions="viewOptions"
+                        :width="nodeSize[0]"
                         ref="root"
                       ></plan-node-container>
                     </g>
@@ -679,35 +678,6 @@ function onClickCte(subplanName: string): void {
                   ><font-awesome-icon icon="align-left"></font-awesome-icon>
                   Diagram</label
                 >
-              </div>
-              <hr />
-              <label class="text-uppercase">Density</label>
-              <div class="form-group">
-                <div class="btn-group btn-group-sm">
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{ active: viewOptions.viewMode == ViewMode.FULL }"
-                    v-on:click="viewOptions.viewMode = ViewMode.FULL"
-                  >
-                    full
-                  </button>
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{
-                      active: viewOptions.viewMode == ViewMode.COMPACT,
-                    }"
-                    v-on:click="viewOptions.viewMode = ViewMode.COMPACT"
-                  >
-                    compact
-                  </button>
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{ active: viewOptions.viewMode == ViewMode.DOT }"
-                    v-on:click="viewOptions.viewMode = ViewMode.DOT"
-                  >
-                    dot
-                  </button>
-                </div>
               </div>
               <hr />
               <label class="text-uppercase">Orientation</label>

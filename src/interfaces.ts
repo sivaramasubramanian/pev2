@@ -4,7 +4,6 @@ import type {
   Orientation,
   SortGroupsProp,
   SortSpaceMemoryProp,
-  ViewMode,
 } from "@/enums"
 
 export interface IPlan {
@@ -238,7 +237,6 @@ export type ViewOptions = {
   showHighlightBar: boolean
   showPlanStats: boolean
   highlightType: HighlightType
-  viewMode: ViewMode
   orientation: Orientation
   showDiagram: boolean
   diagramWidth: number

@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import type { Emitter } from "mitt"
 import {
   computed,
   getCurrentInstance,
@@ -13,30 +12,12 @@ import {
 } from "vue"
 import PlanNodeDetail from "@/components/PlanNodeDetail.vue"
 import { directive as vTippy, useTippy } from "vue-tippy"
-import type { Events, IPlan, Node, ViewOptions, Worker } from "@/interfaces"
-import { HelpService } from "@/services/help-service"
+import type { IPlan, Node, ViewOptions, Worker } from "@/interfaces"
 import { numberToColorHsl } from "@/services/color-service"
-import {
-  cost,
-  duration,
-  formatNodeProp,
-  keysToString,
-  sortKeys,
-  rows,
-} from "@/filters"
-import {
-  EstimateDirection,
-  HighlightType,
-  NodeProp,
-  nodePropTypes,
-  PropType,
-  ViewMode,
-  WorkerProp,
-} from "@/enums"
+import { cost, duration, rows } from "@/filters"
+import { EstimateDirection, HighlightType, NodeProp } from "@/enums"
 import * as _ from "lodash"
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"
-
-import tippy from "tippy.js"
 
 type registerFn = {
   (node: object): void
@@ -54,8 +35,6 @@ const props = defineProps<Props>()
 const el = ref<Element | null>(null) // The .plan-node Element
 const outerEl = ref<Element>() // The outer Element, useful for CTE and subplans
 
-const emitter = inject<Emitter<Events>>("emitter")
-
 const viewOptions = reactive<ViewOptions>(props.viewOptions)
 const node = reactive<Node>(props.node)
 const plan = reactive<IPlan>(props.plan)
@@ -68,9 +47,7 @@ const nodeProps = ref<
 
 const executionTimePercent = ref<number>(NaN)
 // UI flags
-const showDetails = ref<boolean>(false)
 const collapsed = ref<boolean>(false)
-const activeTab = ref<string>("general")
 // calculated properties
 const costPercent = ref<number>(NaN)
 const barWidth = ref<number>(0)
@@ -81,70 +58,6 @@ const plannerRowEstimateDirection = ref<EstimateDirection>()
 const rowsRemoved = ref<number>(NaN)
 const rowsRemovedPercent = ref<number>(NaN)
 const rowsRemovedPercentString = ref<string>()
-
-const helpService = new HelpService()
-const getHelpMessage = helpService.getHelpMessage
-const getNodeTypeDescription = helpService.getNodeTypeDescription
-
-// Returns the list of properties that have already been displayed either in
-// the main panel or in other detailed tabs.
-const notMiscProperties: string[] = [
-  NodeProp.NODE_TYPE,
-  NodeProp.CTE_NAME,
-  NodeProp.EXCLUSIVE_DURATION,
-  NodeProp.EXCLUSIVE_COST,
-  NodeProp.TOTAL_COST,
-  NodeProp.PLAN_ROWS,
-  NodeProp.ACTUAL_ROWS,
-  NodeProp.ACTUAL_LOOPS,
-  NodeProp.OUTPUT,
-  NodeProp.WORKERS,
-  NodeProp.WORKERS_PLANNED,
-  NodeProp.WORKERS_LAUNCHED,
-  NodeProp.EXCLUSIVE_SHARED_HIT_BLOCKS,
-  NodeProp.EXCLUSIVE_SHARED_READ_BLOCKS,
-  NodeProp.EXCLUSIVE_SHARED_DIRTIED_BLOCKS,
-  NodeProp.EXCLUSIVE_SHARED_WRITTEN_BLOCKS,
-  NodeProp.EXCLUSIVE_TEMP_READ_BLOCKS,
-  NodeProp.EXCLUSIVE_TEMP_WRITTEN_BLOCKS,
-  NodeProp.EXCLUSIVE_LOCAL_HIT_BLOCKS,
-  NodeProp.EXCLUSIVE_LOCAL_READ_BLOCKS,
-  NodeProp.EXCLUSIVE_LOCAL_DIRTIED_BLOCKS,
-  NodeProp.EXCLUSIVE_LOCAL_WRITTEN_BLOCKS,
-  NodeProp.SHARED_HIT_BLOCKS,
-  NodeProp.SHARED_READ_BLOCKS,
-  NodeProp.SHARED_DIRTIED_BLOCKS,
-  NodeProp.SHARED_WRITTEN_BLOCKS,
-  NodeProp.TEMP_READ_BLOCKS,
-  NodeProp.TEMP_WRITTEN_BLOCKS,
-  NodeProp.LOCAL_HIT_BLOCKS,
-  NodeProp.LOCAL_READ_BLOCKS,
-  NodeProp.LOCAL_DIRTIED_BLOCKS,
-  NodeProp.LOCAL_WRITTEN_BLOCKS,
-  NodeProp.PLANNER_ESTIMATE_FACTOR,
-  NodeProp.PLANNER_ESTIMATE_DIRECTION,
-  NodeProp.SUBPLAN_NAME,
-  NodeProp.GROUP_KEY,
-  NodeProp.HASH_CONDITION,
-  NodeProp.JOIN_TYPE,
-  NodeProp.INDEX_NAME,
-  NodeProp.HASH_CONDITION,
-  NodeProp.EXCLUSIVE_IO_READ_TIME,
-  NodeProp.EXCLUSIVE_IO_WRITE_TIME,
-  NodeProp.IO_READ_TIME, // Exclusive value already shown in IO tab
-  NodeProp.IO_WRITE_TIME, // Exclusive value already shown in IO tab
-  NodeProp.HEAP_FETCHES,
-  NodeProp.WAL_RECORDS,
-  NodeProp.WAL_BYTES,
-  NodeProp.WAL_FPI,
-  NodeProp.NODE_ID,
-  NodeProp.ROWS_REMOVED_BY_FILTER,
-  NodeProp.ROWS_REMOVED_BY_JOIN_FILTER,
-  NodeProp.ACTUAL_ROWS_REVISED,
-  NodeProp.PLAN_ROWS_REVISED,
-  NodeProp.ROWS_REMOVED_BY_FILTER_REVISED,
-  NodeProp.ROWS_REMOVED_BY_JOIN_FILTER_REVISED,
-]
 
 onBeforeMount(() => {
   calculateProps()
@@ -235,34 +148,7 @@ function calculateProps() {
 function getNodeName(): string {
   let nodeName = isParallelAware.value ? "Parallel " : ""
   nodeName += node[NodeProp.NODE_TYPE]
-  if (viewOptions.viewMode === ViewMode.DOT && !showDetails.value) {
-    return nodeName.replace(/[^A-Z]/g, "")
-  }
   return nodeName
-}
-
-const shouldShowPlannerEstimate = computed(() => {
-  if (
-    (collapsed.value && !showDetails.value) ||
-    viewOptions.viewMode === ViewMode.DOT
-  ) {
-    return false
-  }
-  return (
-    (estimationClass.value || showDetails.value) &&
-    plannerRowEstimateDirection.value !== EstimateDirection.none &&
-    plannerRowEstimateValue.value
-  )
-})
-
-function shouldShowNodeBarLabel(): boolean {
-  if (showDetails.value) {
-    return true
-  }
-  if (collapsed.value || viewOptions.viewMode === ViewMode.DOT) {
-    return false
-  }
-  return true
 }
 
 watch(() => viewOptions.highlightType, calculateBar)
@@ -421,63 +307,9 @@ const isParallelAware = computed((): boolean => {
   return node[NodeProp.PARALLEL_AWARE]
 })
 
-const allWorkersLaunched = computed((): boolean => {
-  return (
-    !node[NodeProp.WORKERS_LAUNCHED] ||
-    node[NodeProp.WORKERS_PLANNED] === node[NodeProp.WORKERS_LAUNCHED]
-  )
-})
-
-function shouldShowProp(key: string, value: unknown): boolean {
-  return (
-    (!!value ||
-      nodePropTypes[key] === PropType.increment ||
-      key === NodeProp.ACTUAL_ROWS) &&
-    notMiscProperties.indexOf(key) === -1
-  )
-}
-
-const shouldShowIoBuffers = computed((): boolean => {
-  const properties: Array<keyof typeof NodeProp> = [
-    "EXCLUSIVE_SHARED_HIT_BLOCKS",
-    "EXCLUSIVE_SHARED_READ_BLOCKS",
-    "EXCLUSIVE_SHARED_DIRTIED_BLOCKS",
-    "EXCLUSIVE_SHARED_WRITTEN_BLOCKS",
-    "EXCLUSIVE_TEMP_READ_BLOCKS",
-    "EXCLUSIVE_TEMP_WRITTEN_BLOCKS",
-    "EXCLUSIVE_LOCAL_HIT_BLOCKS",
-    "EXCLUSIVE_LOCAL_READ_BLOCKS",
-    "EXCLUSIVE_LOCAL_DIRTIED_BLOCKS",
-    "EXCLUSIVE_LOCAL_WRITTEN_BLOCKS",
-    "EXCLUSIVE_IO_READ_TIME",
-    "EXCLUSIVE_IO_WRITE_TIME",
-  ]
-  const values = _.map(properties, (property) => {
-    const value = node[NodeProp[property]]
-    return _.isNaN(value) ? 0 : value
-  })
-  const sum = _.sum(values)
-  return sum > 0
-})
-
 const isNeverExecuted = computed((): boolean => {
   return !!plan.planStats.executionTime && !node[NodeProp.ACTUAL_LOOPS]
 })
-
-const hasSeveralLoops = computed((): boolean => {
-  return (node[NodeProp.ACTUAL_LOOPS] as number) > 1
-})
-
-const tilde = computed((): string => {
-  return hasSeveralLoops.value ? "~" : ""
-})
-
-// returns the formatted prop
-function formattedProp(propName: keyof typeof NodeProp) {
-  const property = NodeProp[propName]
-  const value = node[property]
-  return formatNodeProp(property, value)
-}
 </script>
 
 <template>
@@ -495,7 +327,6 @@ function formattedProp(propName: keyof typeof NodeProp) {
       :class="[
         'text-left plan-node',
         {
-          detailed: showDetails,
           'never-executed': isNeverExecuted,
           parallel: workersPlannedCount,
           selected: selectedNode == node.nodeId,
@@ -542,10 +373,7 @@ function formattedProp(propName: keyof typeof NodeProp) {
         @mouseenter="highlightedNode = node.nodeId"
         @mouseleave="highlightedNode = null"
       >
-        <div
-          class="card-body header no-focus-outline"
-          v-on:click.stop="showDetails = !showDetails"
-        >
+        <div class="card-body header no-focus-outline">
           <header class="mb-0">
             <h4 class="text-body">
               <a
@@ -633,7 +461,7 @@ function formattedProp(propName: keyof typeof NodeProp) {
                 ></font-awesome-icon>
               </span>
             </div>
-            <span v-if="viewOptions.viewMode === ViewMode.FULL">
+            <span>
               <span class="node-duration text-warning" v-if="isNeverExecuted">
                 Never executed
               </span>
@@ -659,7 +487,7 @@ function formattedProp(propName: keyof typeof NodeProp) {
                 aria-valuemax="100"
               ></div>
             </div>
-            <span class="node-bar-label" v-if="shouldShowNodeBarLabel()">
+            <span class="node-bar-label">
               <span class="text-muted">{{ viewOptions.highlightType }}:</span>
               <span v-html="highlightValue"></span>
             </span>

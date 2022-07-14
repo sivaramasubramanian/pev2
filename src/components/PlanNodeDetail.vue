@@ -26,7 +26,6 @@ import {
   nodePropTypes,
   Orientation,
   PropType,
-  ViewMode,
   WorkerProp,
 } from "@/enums"
 import * as _ from "lodash"
@@ -204,39 +203,16 @@ function calculateProps() {
 function getNodeName(): string {
   let nodeName = isParallelAware.value ? "Parallel " : ""
   nodeName += node[NodeProp.NODE_TYPE]
-  if (viewOptions.viewMode === ViewMode.DOT && !showDetails.value) {
-    return nodeName.replace(/[^A-Z]/g, "")
-  }
   return nodeName
 }
 
 const shouldShowPlannerEstimate = computed(() => {
-  if (
-    (collapsed.value && !showDetails.value) ||
-    viewOptions.viewMode === ViewMode.DOT
-  ) {
-    return false
-  }
   return (
     (estimationClass.value || showDetails.value) &&
     plannerRowEstimateDirection.value !== EstimateDirection.none &&
     plannerRowEstimateValue.value
   )
 })
-
-function shouldShowNodeBarLabel(): boolean {
-  if (showDetails.value) {
-    return true
-  }
-  if (collapsed.value || viewOptions.viewMode === ViewMode.DOT) {
-    return false
-  }
-  return true
-}
-
-function getBarColor(percent: number) {
-  return numberToColorHsl(percent)
-}
 
 const durationClass = computed(() => {
   let c
@@ -410,7 +386,7 @@ function formattedProp(propName: keyof typeof NodeProp) {
 </script>
 
 <template>
-  <div class="plan-node detailed" style="width: 380px">
+  <div class="plan-node plan-node-detail">
     <div class="plan-node-body card">
       <div class="bg-light">
         <div class="card-header border-top">
@@ -742,13 +718,7 @@ function formattedProp(propName: keyof typeof NodeProp) {
             "
           >
             <!-- workers tab -->
-            <div
-              v-if="
-                (node[NodeProp.WORKERS_PLANNED] ||
-                  node[NodeProp.WORKERS_PLANNED_BY_GATHER]) &&
-                viewOptions.viewMode === ViewMode.FULL
-              "
-            >
+            <div>
               <b>Workers planned: </b>
               <span class="px-1">{{
                 node[NodeProp.WORKERS_PLANNED] ||
@@ -769,12 +739,7 @@ function formattedProp(propName: keyof typeof NodeProp) {
                 ></font-awesome-icon>
               </em>
             </div>
-            <div
-              v-if="
-                node[NodeProp.WORKERS_LAUNCHED] &&
-                viewOptions.viewMode === ViewMode.FULL
-              "
-            >
+            <div>
               <b>Workers launched: </b>
               <span class="px-1">{{ node[NodeProp.WORKERS_LAUNCHED] }}</span>
             </div>

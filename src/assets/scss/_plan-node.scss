@@ -12,17 +12,7 @@ $bg-color: #fff;
   margin-bottom: 4px;
   overflow-wrap: break-word;
   word-wrap: break-word;
-
-  width: 200px;
-  .twod & {
-    width: 240px;
-  }
-  .twod.compact & {
-    width: 140px;
-  }
-  .twod.dot & {
-    width: $compact-width;
-  }
+  width: 95%;
 
   .plan-node-body {
     position: relative;
@@ -236,32 +226,6 @@ $bg-color: #fff;
   display: block;
 }
 
-.detailed {
-  width: 400px !important;
-}
-
-ul.node-children.collapsed {
-  .plan-node,
-  .plan-node-body {
-    width: $compact-width !important;
-  }
-  .plan-node {
-    display: block;
-    .plan-node-body {
-      height: math.div($compact-width, 3);
-      * {
-        display: none;
-      }
-    }
-    &:hover .collapse-handle {
-      display: none;
-    }
-  }
-
-  .classic .plan & li::before {
-    top: 7px;
-  }
-  .classic .plan & li:last-child::after {
-    height: 14px;
-  }
+.plan-node-detail {
+  width: 400px;
 }
