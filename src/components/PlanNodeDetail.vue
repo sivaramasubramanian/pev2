@@ -1,38 +1,18 @@
 <script lang="ts" setup>
-import {
-  computed,
-  getCurrentInstance,
-  inject,
-  onBeforeMount,
-  reactive,
-  ref,
-  watch,
-} from "vue"
+import { computed, onBeforeMount, reactive, ref } from "vue"
 import { directive as vTippy } from "vue-tippy"
-import type { Events, IPlan, Node, ViewOptions, Worker } from "@/interfaces"
+import type { IPlan, Node, ViewOptions, Worker } from "@/interfaces"
 import { HelpService } from "@/services/help-service"
-import { numberToColorHsl } from "@/services/color-service"
-import {
-  cost,
-  duration,
-  formatNodeProp,
-  keysToString,
-  sortKeys,
-  rows,
-} from "@/filters"
+import { formatNodeProp } from "@/filters"
 import {
   EstimateDirection,
   NodeProp,
   nodePropTypes,
-  Orientation,
   PropType,
   WorkerProp,
 } from "@/enums"
 import * as _ from "lodash"
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"
-
-const selectedNode = inject<number | null>("selectedNode", null)
-const highlightedNode = inject<number | null>("highlightedNode", null)
 
 interface Props {
   node: Node
@@ -40,10 +20,7 @@ interface Props {
   viewOptions: ViewOptions
 }
 const props = defineProps<Props>()
-const el = ref<Element | null>(null) // The .plan-node Element
-const outerEl = ref<Element | null>(null) // The outer Element, useful for CTE and subplans
 
-const viewOptions = reactive<ViewOptions>(props.viewOptions)
 const node = reactive<Node>(props.node)
 const plan = reactive<IPlan>(props.plan)
 const nodeProps = ref<
@@ -59,8 +36,6 @@ const showDetails = ref<boolean>(false)
 const activeTab = ref<string>("general")
 // calculated properties
 const costPercent = ref<number>(NaN)
-const barWidth = ref<number>(0)
-const highlightValue = ref<string | null>(null)
 const plans = ref<Node[]>([])
 const plannerRowEstimateValue = ref<number>()
 const plannerRowEstimateDirection = ref<EstimateDirection>()
@@ -298,10 +273,6 @@ const heapFetchesClass = computed(() => {
   return false
 })
 
-const hasChildren = computed((): boolean => {
-  return !!plans.value
-})
-
 const filterTooltip = computed((): string => {
   return rowsRemovedPercentString.value + "% of rows removed by filter"
 })
@@ -312,24 +283,8 @@ const workersLaunchedCount = computed((): number => {
   return workers ? workers.length : NaN
 })
 
-const workersPlannedCount = computed((): number => {
-  return node[NodeProp.WORKERS_PLANNED_BY_GATHER] as number
-})
-
-const workersPlannedCountReversed = computed((): number[] => {
-  const workersPlanned = node[NodeProp.WORKERS_PLANNED_BY_GATHER]
-  return [...Array(workersPlanned).keys()].slice().reverse()
-})
-
 const isParallelAware = computed((): boolean => {
   return node[NodeProp.PARALLEL_AWARE]
-})
-
-const allWorkersLaunched = computed((): boolean => {
-  return (
-    !node[NodeProp.WORKERS_LAUNCHED] ||
-    node[NodeProp.WORKERS_PLANNED] === node[NodeProp.WORKERS_LAUNCHED]
-  )
 })
 
 function shouldShowProp(key: string, value: unknown): boolean {
