@@ -112,6 +112,8 @@ const zoomListener = d3
   })
 const nodeSize: [number, number] = [200, 80]
 const layoutRootNode = ref<null | d3.HierarchyPointNode<Node>>(null)
+// computed position + rootNode
+const ctes = ref<[[number, number], d3.HierarchyPointNode<Node>][]>([])
 
 onBeforeMount(() => {
   const savedOptions = localStorage.getItem("viewOptions")
@@ -173,6 +175,26 @@ onBeforeMount(() => {
   layoutRootNode.value = layout(
     d3.hierarchy(planJson.Plan, (v: Node) => v.Plans)
   )
+
+  _.each(plan.value.ctes, (cte) => {
+    if (!layoutRootNode.value) {
+      return
+    }
+    const mainLayoutExtent = getLayoutExtent(layoutRootNode.value)
+    const cteRootNode = layout(d3.hierarchy(cte, (v: Node) => v.Plans))
+    const currentCteExtent = getLayoutExtent(cteRootNode)
+    const position: [number, number] = [
+      mainLayoutExtent[0] - currentCteExtent[0],
+      mainLayoutExtent[3],
+    ]
+    // loop through previous ctes
+    _.each(ctes.value, (cte) => {
+      const extent = getLayoutExtent(cte[1])
+      position[0] += extent[1] - extent[0] + nodeSize[0] * 1.2
+      console.log(position)
+    })
+    ctes.value.push([position, cteRootNode])
+  })
 })
 
 onMounted(() => {
@@ -341,6 +363,39 @@ function onClickCte(subplanName: string): void {
     )
   })
   cmp && highlightEl(cmp.refs.outerEl, CenterMode.visible, HighlightMode.flash)
+}
+
+function getLayoutExtent(
+  layoutRootNode: d3.HierarchyPointNode<Node>
+): [number, number, number, number] {
+  const minX =
+    _.min(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.x
+      })
+    ) || 0
+
+  const maxX =
+    _.max(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.x
+      })
+    ) || 0
+
+  const minY =
+    _.min(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.y
+      })
+    ) || 0
+
+  const maxY =
+    _.max(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.y
+      })
+    ) || 0
+  return [minX, maxX, minY, maxY]
 }
 </script>
 
@@ -648,6 +703,34 @@ function onClickCte(subplanName: string): void {
                         :width="nodeSize[0]"
                         ref="root"
                       ></plan-node-container>
+                      <g
+                        v-for="cte in ctes"
+                        :key="cte[1].data.nodeId"
+                        :transform="`translate(${cte[0][0]}, ${
+                          cte[0][1] + 150
+                        })`"
+                      >
+                        <path
+                          v-for="(link, index) in cte[1].links()"
+                          :key="`link${index}`"
+                          :d="lineGen(link)"
+                          stroke="grey"
+                          :stroke-width="
+                            edgeWeight(link.target.data['Actual Rows'])
+                          "
+                          stroke-linecap="square"
+                          fill="none"
+                        />
+                        <plan-node-container
+                          v-for="(item, index) in cte[1].descendants()"
+                          :key="index"
+                          :node="item"
+                          :plan="plan"
+                          :viewOptions="viewOptions"
+                          :width="nodeSize[0]"
+                          ref="root"
+                        ></plan-node-container>
+                      </g>
                     </g>
                   </svg>
                 </pane>
