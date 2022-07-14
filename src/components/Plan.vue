@@ -52,11 +52,6 @@ import { far } from "@fortawesome/free-regular-svg-icons"
 import { fab } from "@fortawesome/free-brands-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"
 import * as d3 from "d3"
-import {
-  flextree,
-  type FlexHierarchyPointLink,
-  type FlexHierarchyPointNode,
-} from "d3-flextree"
 
 import { linkVertical } from "d3-shape"
 
@@ -117,17 +112,8 @@ const zoomListener = d3
     transform.value = e.transform
     scale.value = e.transform.k
   })
-const layout = flextree({
-  nodeSize: (node: d3.HierarchyNode<Node>) => {
-    if (node.data.size) {
-      return [node.data.size[0], node.data.size[1] + paddingBottom]
-    }
-    return [0, 0]
-  },
-  spacing: (nodeA: d3.HierarchyNode<Node>, nodeB: d3.HierarchyNode<Node>) =>
-    Math.pow(nodeA.path(nodeB).length, 1.5),
-})
-const tree = ref(layout.hierarchy({}))
+const nodeSize: [number, number] = [250, 80]
+const layoutRootNode = ref<null | d3.HierarchyPointNode<Node>>(null)
 
 onBeforeMount(() => {
   const savedOptions = localStorage.getItem("viewOptions")
@@ -181,9 +167,14 @@ onBeforeMount(() => {
   })
   window.addEventListener("hashchange", onHashChange)
 
-  const _h = layout.hierarchy(planJson.Plan, (v: Node) => v.Plans)
-  layout(_h)
-  tree.value = _h
+  const layout = d3
+    .tree<Node>()
+    .nodeSize(nodeSize)
+    .separation((a, b) => (a.parent == b.parent ? 1 : 1.3))
+
+  layoutRootNode.value = layout(
+    d3.hierarchy(planJson.Plan, (v: Node) => v.Plans)
+  )
 })
 
 onMounted(() => {
@@ -208,12 +199,15 @@ function onViewOptionsChanged() {
 }
 
 const lineGen = computed(() => {
-  return function (link: FlexHierarchyPointLink<object>) {
+  return function (link: d3.HierarchyPointLink<Node>) {
     const source = link.source
     const target = link.target
     const pathD = linkVertical()({
-      source: [source.x, source.y + source.ySize - paddingBottom],
-      target: [target.x, target.y],
+      source: [
+        source.x + nodeSize[0] / 2,
+        source.y + nodeSize[1] - paddingBottom,
+      ],
+      target: [target.x + nodeSize[0] / 2, target.y],
     })
     return pathD ? pathD : undefined
   }
@@ -244,7 +238,6 @@ provide("register", registerNode)
 provide("selectedNode", selectedNode)
 provide("highlightedNode", highlightedNode)
 provide("emitter", emitter)
-provide("updateNodeSize", updateNodeSize)
 
 function selectNode(nodeId: number) {
   selectedNode.value = nodeId
@@ -350,20 +343,6 @@ function onClickCte(subplanName: string): void {
     )
   })
   cmp && highlightEl(cmp.refs.outerEl, CenterMode.visible, HighlightMode.flash)
-}
-
-watch(
-  () =>
-    tree.value
-      .descendants()
-      .map((item: FlexHierarchyPointNode<Node>) => item.data.size),
-  () => {
-    layout(tree.value)
-  }
-)
-
-function updateNodeSize(node: Node, size: [number, number]) {
-  node.size = [size[0] / scale.value, size[1] / scale.value]
 }
 </script>
 
@@ -652,7 +631,7 @@ function updateNodeSize(node: Node, size: [number, number]) {
                     <g :transform="transform">
                       <!-- Links -->
                       <path
-                        v-for="(link, index) in tree.links()"
+                        v-for="(link, index) in layoutRootNode?.links()"
                         :key="`link${index}`"
                         :d="lineGen(link)"
                         stroke="grey"
@@ -663,7 +642,7 @@ function updateNodeSize(node: Node, size: [number, number]) {
                         fill="none"
                       />
                       <plan-node-container
-                        v-for="(item, index) in tree.descendants()"
+                        v-for="(item, index) in layoutRootNode?.descendants()"
                         :key="index"
                         :node="item"
                         :plan="plan"

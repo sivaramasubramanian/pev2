@@ -55,8 +55,6 @@ const el = ref<Element | null>(null) // The .plan-node Element
 const outerEl = ref<Element>() // The outer Element, useful for CTE and subplans
 
 const emitter = inject<Emitter<Events>>("emitter")
-const updateNodeSize =
-  inject<(node: Node, size: [number, number]) => null>("updateNodeSize")
 
 const viewOptions = reactive<ViewOptions>(props.viewOptions)
 const node = reactive<Node>(props.node)
@@ -161,7 +159,6 @@ onBeforeMount(() => {
 })
 
 onMounted(async () => {
-  updateSize()
   const content = h(PlanNodeDetail, {
     node: props.node,
     plan: props.plan,
@@ -481,17 +478,6 @@ function formattedProp(propName: keyof typeof NodeProp) {
   const value = node[property]
   return formatNodeProp(property, value)
 }
-
-function updateSize() {
-  const rect = outerEl.value?.getBoundingClientRect()
-  if (rect) {
-    updateNodeSize?.(node, [rect.width, rect.height])
-  }
-}
-
-watch(showDetails, () => {
-  window.setTimeout(updateSize, 1)
-})
 </script>
 
 <template>
