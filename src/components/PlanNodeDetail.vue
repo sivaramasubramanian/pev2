@@ -56,7 +56,6 @@ const nodeProps = ref<
 const executionTimePercent = ref<number>(NaN)
 // UI flags
 const showDetails = ref<boolean>(false)
-const collapsed = ref<boolean>(false)
 const activeTab = ref<string>("general")
 // calculated properties
 const costPercent = ref<number>(NaN)

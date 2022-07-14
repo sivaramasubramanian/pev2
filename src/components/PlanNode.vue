@@ -47,7 +47,6 @@ const nodeProps = ref<
 
 const executionTimePercent = ref<number>(NaN)
 // UI flags
-const collapsed = ref<boolean>(false)
 // calculated properties
 const costPercent = ref<number>(NaN)
 const barWidth = ref<number>(0)
@@ -280,10 +279,6 @@ const heapFetchesClass = computed(() => {
   return false
 })
 
-const hasChildren = computed((): boolean => {
-  return !!plans.value
-})
-
 const filterTooltip = computed((): string => {
   return rowsRemovedPercentString.value + "% of rows removed by filter"
 })
@@ -349,24 +344,6 @@ const isNeverExecuted = computed((): boolean => {
         >
           {{ index }}
         </div>
-      </div>
-      <div
-        class="collapse-handle"
-        v-if="hasChildren"
-        v-on:click.stop="collapsed = !collapsed"
-      >
-        <font-awesome-icon
-          fixed-width
-          icon="expand"
-          v-if="collapsed"
-          title="Expand child nodes"
-        ></font-awesome-icon>
-        <font-awesome-icon
-          fixed-width
-          icon="compress"
-          v-else
-          title="Collpase child nodes"
-        ></font-awesome-icon>
       </div>
       <div
         class="plan-node-body card"
