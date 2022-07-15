@@ -84,6 +84,7 @@ onMounted(async () => {
     placement: "right",
     maxWidth: "none",
     arrow: false,
+    theme: "no-background",
   })
 })
 
@@ -471,3 +472,9 @@ const isNeverExecuted = computed((): boolean => {
     </div>
   </div>
 </template>
+
+<style lang="scss">
+.tippy-box[data-theme~="no-background"] {
+  background-color: transparent;
+}
+</style>
