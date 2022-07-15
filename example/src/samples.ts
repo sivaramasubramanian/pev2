@@ -2756,74 +2756,27 @@ export const plan6_source = `"Limit  (cost=1.27..3878.21 rows=5 width=172) (actu
 "Planning Time: 2.916 ms"
 "Execution Time: 2.900 ms"`
 
-export const plan7_source = `Sort  (cost=55235.15..55247.04 rows=4758 width=1128) (actual time=132.733..133.642 rows=22577 loops=1)
+export const plan7_source = `Append (actual time=102.409..302.675 rows=3 loops=1)
+  CTE init
+    ->  Append (actual time=102.397..302.649 rows=2 loops=1)
+          ->  Function Scan on pg_sleep pg_sleep_for (actual time=102.396..102.398 rows=1 loops=1)
+          ->  Function Scan on pg_sleep pg_sleep_for_1 (actual time=200.243..200.245 rows=1 loops=1)
+  ->  Limit (actual time=102.407..102.409 rows=1 loops=1)
+        ->  CTE Scan on init init_1 (actual time=102.402..102.402 rows=1 loops=1)
+  ->  CTE Scan on init (actual time=0.001..200.256 rows=2 loops=1)
+Planning Time: 47.003 ms
+Execution Time: 303.905 ms
+`
 
-  Sort Key: (COALESCE(t_energy.te_source_file, t_quality.tq_source_file)), (COALESCE(t_energy.te_meter_id, t_quality.tq_meter_id)), (COALESCE(t_energy.te_frame_date, t_quality.tq_frame_date))
-
-  Sort Method: quicksort  Memory: 7358kB
-
-  CTE t_quality
-
-    ->  Subquery Scan on x  (cost=26084.17..26602.15 rows=4604 width=283) (actual time=47.040..54.620 rows=12101 loops=1)
-
-          Filter: (x.r < 2)
-
-          Rows Removed by Filter: 29
-
-          ->  WindowAgg  (cost=26084.17..26429.49 rows=13813 width=287) (actual time=47.037..53.332 rows=12130 loops=1)
-
-                ->  Sort  (cost=26084.17..26118.70 rows=13813 width=279) (actual time=47.026..47.503 rows=12130 loops=1)
-
-                      Sort Key: t.meter_id, t.frame_date, t.num_ligne DESC
-
-                      Sort Method: quicksort  Memory: 3607kB
-
-                      ->  Index Scan using source_file_type_ligne_201904 on kaifa_load_profiles_201904 t  (cost=0.69..25134.27 rows=13813 width=279) (actual time=1.120..18.338 rows=12130 loops=1)
-
-                            Index Cond: ((source_file = '/srv/acquisition/LP_20190429223000_24990_0-numerote.txt'::text) AND (type_ligne = 'QUALITY'::text))
-
-  CTE t_energy
-
-    ->  Subquery Scan on x_1  (cost=26955.50..27490.74 rows=4758 width=382) (actual time=30.821..38.989 rows=12844 loops=1)
-
-          Filter: (x_1.r < 2)
-
-          Rows Removed by Filter: 16
-
-          ->  WindowAgg  (cost=26955.50..27312.32 rows=14273 width=386) (actual time=30.820..37.670 rows=12860 loops=1)
-
-                ->  Sort  (cost=26955.50..26991.18 rows=14273 width=378) (actual time=30.814..31.252 rows=12860 loops=1)
-
-                      Sort Key: t_1.meter_id, t_1.frame_date, t_1.num_ligne DESC
-
-                      Sort Method: quicksort  Memory: 2193kB
-
-                      ->  Index Scan using source_file_type_ligne_201904 on kaifa_load_profiles_201904 t_1  (cost=0.69..25970.59 rows=14273 width=378) (actual time=0.403..6.428 rows=12860 loops=1)
-
-                            Index Cond: ((source_file = '/srv/acquisition/LP_20190429223000_24990_0-numerote.txt'::text) AND (type_ligne = 'ENERGY'::text))
-
-  ->  Merge Full Join  (cost=757.98..851.63 rows=4758 width=1128) (actual time=114.277..123.103 rows=22577 loops=1)
-
-        Merge Cond: ((t_quality.tq_source_file = t_energy.te_source_file) AND (t_quality.tq_meter_id = t_energy.te_meter_id) AND (t_quality.tq_frame_date = t_energy.te_frame_date))
-
-        ->  Sort  (cost=372.20..383.71 rows=4604 width=496) (actual time=65.897..66.323 rows=12101 loops=1)
-
-              Sort Key: t_quality.tq_source_file, t_quality.tq_meter_id, t_quality.tq_frame_date
-
-              Sort Method: quicksort  Memory: 3599kB
-
-              ->  CTE Scan on t_quality  (cost=0.00..92.08 rows=4604 width=496) (actual time=47.043..61.095 rows=12101 loops=1)
-
-        ->  Sort  (cost=385.78..397.68 rows=4758 width=496) (actual time=48.371..48.779 rows=12844 loops=1)
-
-              Sort Key: t_energy.te_source_file, t_energy.te_meter_id, t_energy.te_frame_date
-
-              Sort Method: quicksort  Memory: 2202kB
-
-              ->  CTE Scan on t_energy  (cost=0.00..95.16 rows=4758 width=496) (actual time=30.824..44.152 rows=12844 loops=1)
-
-Planning time: 2.040 ms
-Execution time: 136.448 ms`
+export const plan7_query = `WITH init AS (
+ SELECT * FROM pg_sleep_for('100ms')
+ UNION ALL
+ SELECT * FROM pg_sleep_for('200ms')
+)
+(SELECT * FROM init LIMIT 1)
+UNION ALL
+(SELECT * FROM init);
+`
 
 export const plan8_source = String.raw`{
   "Plan": {
