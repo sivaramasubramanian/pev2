@@ -216,6 +216,32 @@ onBeforeMount(() => {
       }
     }
   })
+
+  // compute links from node in CTE to other CTE
+  _.each(ctes.value, (cte) => {
+    _.each(cte[1].descendants(), (sourceCte) => {
+      if (_.has(sourceCte.data, NodeProp.CTE_NAME)) {
+        const targetCte = _.find(ctes.value, (cteNode) => {
+          return (
+            cteNode[1].data[NodeProp.SUBPLAN_NAME] ==
+            "CTE " + sourceCte.data[NodeProp.CTE_NAME]
+          )
+        })
+        if (targetCte) {
+          const source = sourceCte.copy()
+          source.x = sourceCte.x + cte[0][0]
+          source.y = sourceCte.y + cte[0][1]
+          const target = targetCte[1].copy()
+          target.x = targetCte[0][0]
+          target.y = targetCte[0][1]
+          toCteLinks.value.push({
+            source: source,
+            target: target,
+          })
+        }
+      }
+    })
+  })
 })
 
 onMounted(() => {
