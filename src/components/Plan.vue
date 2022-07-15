@@ -114,6 +114,7 @@ const nodeSize: [number, number] = [200, 80]
 const layoutRootNode = ref<null | d3.HierarchyPointNode<Node>>(null)
 // computed position + rootNode
 const ctes = ref<[[number, number], d3.HierarchyPointNode<Node>][]>([])
+const toCteLinks = ref<d3.HierarchyPointLink<Node>[]>([])
 
 onBeforeMount(() => {
   const savedOptions = localStorage.getItem("viewOptions")
@@ -185,15 +186,35 @@ onBeforeMount(() => {
     const currentCteExtent = getLayoutExtent(cteRootNode)
     const position: [number, number] = [
       mainLayoutExtent[0] - currentCteExtent[0],
-      mainLayoutExtent[3],
+      mainLayoutExtent[3] + 150,
     ]
     // loop through previous ctes
     _.each(ctes.value, (cte) => {
       const extent = getLayoutExtent(cte[1])
       position[0] += extent[1] - extent[0] + nodeSize[0] * 1.2
-      console.log(position)
     })
     ctes.value.push([position, cteRootNode])
+  })
+
+  // compute links from node to CTE
+  _.each(layoutRootNode.value.descendants(), (source) => {
+    if (_.has(source.data, NodeProp.CTE_NAME)) {
+      const cte = _.find(ctes.value, (cteNode) => {
+        return (
+          cteNode[1].data[NodeProp.SUBPLAN_NAME] ==
+          "CTE " + source.data[NodeProp.CTE_NAME]
+        )
+      })
+      if (cte) {
+        const target = cte[1].copy()
+        target.x = cte[0][0]
+        target.y = cte[0][1]
+        toCteLinks.value.push({
+          source: source,
+          target: target,
+        })
+      }
+    }
   })
 })
 
@@ -684,6 +705,17 @@ function getLayoutExtent(
                     <g :transform="transform">
                       <!-- Links -->
                       <path
+                        v-for="(link, index) in toCteLinks"
+                        :key="`linkcte${index}`"
+                        :d="lineGen(link)"
+                        stroke="#B3D7D7"
+                        :stroke-width="
+                          edgeWeight(link.target.data['Actual Rows'])
+                        "
+                        stroke-linecap="square"
+                        fill="none"
+                      />
+                      <path
                         v-for="(link, index) in layoutRootNode?.links()"
                         :key="`link${index}`"
                         :d="lineGen(link)"
@@ -706,9 +738,7 @@ function getLayoutExtent(
                       <g
                         v-for="cte in ctes"
                         :key="cte[1].data.nodeId"
-                        :transform="`translate(${cte[0][0]}, ${
-                          cte[0][1] + 150
-                        })`"
+                        :transform="`translate(${cte[0][0]}, ${cte[0][1]})`"
                       >
                         <path
                           v-for="(link, index) in cte[1].links()"
@@ -884,8 +914,4 @@ function getLayoutExtent(
 @import "../assets/scss/pev2";
 @import "splitpanes/dist/splitpanes.css";
 @import "highlight.js/scss/stackoverflow-light.scss";
-
-path {
-  opacity: 0.5;
-}
 </style>
