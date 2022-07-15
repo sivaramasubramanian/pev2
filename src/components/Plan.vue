@@ -737,6 +737,23 @@ function getLayoutExtent(
                         :key="cte[1].data.nodeId"
                         :transform="`translate(${cte[0][0]}, ${cte[0][1]})`"
                       >
+                        <rect
+                          :x="getLayoutExtent(cte[1])[0] - padding / 4"
+                          :y="-padding / 2"
+                          :width="
+                            getLayoutExtent(cte[1])[1] +
+                            nodeSize[0] -
+                            getLayoutExtent(cte[1])[0] +
+                            padding / 2
+                          "
+                          :height="getLayoutExtent(cte[1])[3] + nodeSize[1]"
+                          stroke="#cfcfcf"
+                          stroke-width="2"
+                          fill="#cfcfcf"
+                          fill-opacity="10%"
+                          rx="5"
+                          ry="5"
+                        ></rect>
                         <path
                           v-for="(link, index) in cte[1].links()"
                           :key="`link${index}`"
