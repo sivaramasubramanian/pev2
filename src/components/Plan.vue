@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import * as _ from "lodash"
+import _ from "lodash"
 import {
   computed,
   reactive,
@@ -13,10 +13,8 @@ import {
 } from "vue"
 import { directive as vTippy } from "vue-tippy"
 import { Splitpanes, Pane } from "splitpanes"
-import mitt from "mitt"
 
 import type {
-  Events,
   IBlocksStats,
   IPlan,
   IPlanContent,
@@ -25,22 +23,21 @@ import type {
   Node,
   Settings,
 } from "@/interfaces"
+import {
+  HighlightedNodeIdKey,
+  PlanKey,
+  SelectedNodeIdKey,
+  SelectNodeKey,
+  ViewOptionsKey,
+} from "@/symbols"
 import Copy from "@/components/Copy.vue"
 import Diagram from "@/components/Diagram.vue"
 import PlanNode from "@/components/PlanNode.vue"
+import PlanNodeDetail from "@/components/PlanNodeDetail.vue"
 import Stats from "@/components/Stats.vue"
-import { scrollChildIntoParentView } from "@/services/help-service"
 import { PlanService } from "@/services/plan-service"
-import { HelpService } from "@/services/help-service"
-import Dragscroll from "@/dragscroll"
-import {
-  CenterMode,
-  HighlightMode,
-  HighlightType,
-  NodeProp,
-  Orientation,
-  ViewMode,
-} from "@/enums"
+import { HelpService, findNodeById } from "@/services/help-service"
+import { HighlightType, NodeProp } from "@/enums"
 import { duration, durationClass, json_, pgsql_ } from "@/filters"
 
 import "tippy.js/dist/tippy.css"
@@ -50,6 +47,7 @@ import { fas } from "@fortawesome/free-solid-svg-icons"
 import { far } from "@fortawesome/free-regular-svg-icons"
 import { fab } from "@fortawesome/free-brands-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"
+import * as d3 from "d3"
 
 // Add all icons to the library
 library.add(fas, far, fab)
@@ -70,23 +68,17 @@ const plan = ref<IPlan>()
 const planEl = ref()
 let planStats = reactive<IPlanStats>({} as IPlanStats)
 const rootNode = ref<Node>()
-const zoomTo = ref<number>()
 const showSettings = ref<boolean>(false)
 const showTriggers = ref<boolean>(false)
-const selectedNode = ref<number>(NaN)
-const highlightedNode = ref<number>(NaN)
-const planNodes: { [key: number]: typeof PlanNode } = {}
-
-const emitter = mitt<Events>()
+const selectedNodeId = ref<number>(NaN)
+const selectedNode = ref<Node | undefined>(undefined)
+const highlightedNodeId = ref<number>(NaN)
 
 const viewOptions = reactive({
   menuHidden: true,
   showHighlightBar: false,
   showPlanStats: true,
   highlightType: HighlightType.NONE,
-  viewMode: ViewMode.FULL,
-  orientation: Orientation.TWOD,
-  showDiagram: true,
   diagramWidth: 20,
 })
 
@@ -94,6 +86,35 @@ const planService = new PlanService()
 
 const helpService = new HelpService()
 const getHelpMessage = helpService.getHelpMessage
+
+// Vertical padding between 2 nodes in the tree layout
+const padding = 40
+const transform = ref("")
+const scale = ref(1)
+const edgeWeight = computed(() => {
+  return d3
+    .scaleLinear()
+    .domain([0, planStats.maxRows])
+    .range([1, padding / 1.5])
+})
+const zoomListener = d3
+  .zoom()
+  .scaleExtent([0.1, 3])
+  .on("zoom", function (e) {
+    transform.value = e.transform
+    scale.value = e.transform.k
+  })
+// Approximate maximum height for a node rectangle (when there's a lot of context)
+const maxNodeHeight = computed(() => {
+  return viewOptions.highlightType == HighlightType.NONE ? 70 : 100
+})
+const nodeSize = computed<[number, number]>(() => {
+  return [240, maxNodeHeight.value + padding]
+})
+const layoutRootNode = ref<null | d3.HierarchyPointNode<Node>>(null)
+// computed position + rootNode
+const ctes = ref<d3.HierarchyPointNode<Node>[]>([])
+const toCteLinks = ref<d3.HierarchyPointLink<Node>[]>([])
 
 onBeforeMount(() => {
   const savedOptions = localStorage.getItem("viewOptions")
@@ -130,27 +151,114 @@ onBeforeMount(() => {
   plan.value.planStats = planStats
 
   nextTick(() => {
-    let nodeId = 1
-    let highlightMode = HighlightMode.flash
-    if (zoomTo.value) {
-      nodeId = zoomTo.value
-      // tslint:disable-next-line:no-bitwise
-      highlightMode = HighlightMode.highlight | HighlightMode.showdetails
-    }
-    centerNode(nodeId, CenterMode.visible, highlightMode)
-    // build the diagram structure
-    // with level and reference to PlanNode components for interaction
-    if (!plan.value) {
-      return
-    }
     onHashChange()
   })
   window.addEventListener("hashchange", onHashChange)
+  doLayout()
 })
 
+function doLayout() {
+  if (!rootNode.value) {
+    return
+  }
+
+  const layout = d3
+    .tree<Node>()
+    .nodeSize(nodeSize.value)
+    .separation((a, b) => (a.parent == b.parent ? 1 : 1.3))
+
+  layoutRootNode.value = layout(
+    d3.hierarchy(rootNode.value, (v: Node) => v.Plans)
+  )
+
+  const mainLayoutExtent = getLayoutExtent(layoutRootNode.value)
+  const offset: [number, number] = [
+    mainLayoutExtent[0],
+    mainLayoutExtent[3] + maxNodeHeight.value + padding * 3,
+  ]
+  ctes.value = []
+  _.each(plan.value?.ctes, (cte) => {
+    if (!layoutRootNode.value) {
+      return
+    }
+    const cteRootNode = layout(d3.hierarchy(cte, (v: Node) => v.Plans))
+    const currentCteExtent = getLayoutExtent(cteRootNode)
+    const currentWidth = currentCteExtent[1] - currentCteExtent[0]
+    ctes.value.push(cteRootNode)
+    cteRootNode.each((node) => {
+      node.x += offset[0] - currentCteExtent[0]
+      node.y += offset[1]
+    })
+    offset[0] += currentWidth + nodeSize.value[0] + padding * 2
+  })
+
+  // compute links from node to CTE
+  toCteLinks.value = []
+  _.each(layoutRootNode.value.descendants(), (source) => {
+    if (_.has(source.data, NodeProp.CTE_NAME)) {
+      const cte = _.find(ctes.value, (cteNode) => {
+        return (
+          cteNode.data[NodeProp.SUBPLAN_NAME] ==
+          "CTE " + source.data[NodeProp.CTE_NAME]
+        )
+      })
+      if (cte) {
+        toCteLinks.value.push({
+          source: source,
+          target: cte,
+        })
+      }
+    }
+  })
+
+  // compute links from node in CTE to other CTE
+  _.each(ctes.value, (cte) => {
+    _.each(cte.descendants(), (sourceCte) => {
+      if (_.has(sourceCte.data, NodeProp.CTE_NAME)) {
+        const targetCte = _.find(ctes.value, (cteNode) => {
+          return (
+            cteNode.data[NodeProp.SUBPLAN_NAME] ==
+            "CTE " + sourceCte.data[NodeProp.CTE_NAME]
+          )
+        })
+        if (targetCte) {
+          toCteLinks.value.push({
+            source: sourceCte,
+            target: targetCte,
+          })
+        }
+      }
+    })
+  })
+}
+
 onMounted(() => {
-  handleScroll()
-  emitter.on("clickcte", onClickCte)
+  d3.select(planEl.value.$el).call(zoomListener)
+  nextTick(() => {
+    if (layoutRootNode.value) {
+      const extent = getLayoutExtent(layoutRootNode.value)
+      const x0 = extent[0]
+      const y0 = extent[2]
+      const x1 = extent[1]
+      const y1 = extent[3]
+      const rect = planEl.value.$el.getBoundingClientRect()
+
+      d3.select(planEl.value.$el)
+        .transition()
+        .call(
+          zoomListener.transform,
+          d3.zoomIdentity
+            .translate(rect.width / 2 - nodeSize.value[0] / 2, 10)
+            .scale(
+              Math.min(
+                1,
+                0.8 / Math.max((x1 - x0) / rect.width, (y1 - y0) / rect.height)
+              )
+            )
+            .translate(-(x0 + x1) / 2, 10)
+        )
+    }
+  })
 })
 
 onBeforeUnmount(() => {
@@ -161,7 +269,40 @@ watch(viewOptions, onViewOptionsChanged)
 
 function onViewOptionsChanged() {
   localStorage.setItem("viewOptions", JSON.stringify(viewOptions))
+  doLayout()
 }
+
+watch(selectedNodeId, onSelectedNode)
+
+function onSelectedNode(v: number) {
+  window.location.hash = v ? "plan/node/" + v : ""
+  if (plan.value && v) {
+    selectedNode.value = findNodeById(plan.value, v)
+  }
+}
+
+const lineGen = computed(() => {
+  return function (link: d3.HierarchyPointLink<Node>) {
+    const source = link.source
+    const target = link.target
+    const k = Math.abs(target.y - source.y) - maxNodeHeight.value
+    const path = d3.path()
+    path.moveTo(source.x + nodeSize.value[0] / 2, source.y)
+    path.lineTo(
+      source.x + nodeSize.value[0] / 2,
+      source.y + maxNodeHeight.value
+    )
+    path.bezierCurveTo(
+      source.x + nodeSize.value[0] / 2,
+      source.y + maxNodeHeight.value + k / 2,
+      target.x + nodeSize.value[0] / 2,
+      target.y - k / 2,
+      target.x + nodeSize.value[0] / 2,
+      target.y
+    )
+    return path.toString()
+  }
+})
 
 function onHashChange(): void {
   const reg = /#([a-zA-Z]*)(\/node\/([0-9]*))*/
@@ -169,77 +310,62 @@ function onHashChange(): void {
   if (matches) {
     const tab = matches[1] || "plan"
     setActiveTab(tab)
-    const nodeId = matches[3]
-    if (nodeId !== undefined) {
+    const nodeId = parseInt(matches[3], 0)
+    if (
+      tab == "plan" &&
+      nodeId !== undefined &&
+      nodeId != selectedNodeId.value
+    ) {
       // Delayed to make sure the tab has changed before recentering
       setTimeout(() => {
-        selectNode(parseInt(nodeId, 0))
+        selectNode(nodeId, true)
       }, 1)
     }
   }
 }
 
-// Register a PlanNode component by its id
-function registerNode(node: typeof PlanNode) {
-  planNodes[node.props.node.nodeId] = node
-}
+provide(SelectedNodeIdKey, selectedNodeId)
+provide(HighlightedNodeIdKey, highlightedNodeId)
 
-provide("register", registerNode)
-provide("selectedNode", selectedNode)
-provide("highlightedNode", highlightedNode)
-provide("emitter", emitter)
-
-function selectNode(nodeId: number) {
-  selectedNode.value = nodeId
-  centerNode(nodeId, CenterMode.visible, HighlightMode.highlight)
-}
-
-function centerNode(
-  nodeId: number,
-  centerMode: CenterMode,
-  highlightMode: HighlightMode
-): void {
-  const cmp = planNodes[nodeId]
-  if (cmp) {
-    highlightEl(cmp.refs.el, centerMode, highlightMode)
-    // tslint:disable-next-line:no-bitwise
-    if (highlightMode & HighlightMode.showdetails) {
-      cmp.setShowDetails(true)
-    }
+function selectNode(nodeId: number, center: boolean): void {
+  center = !!center
+  selectedNodeId.value = nodeId
+  if (center) {
+    centerNode(nodeId)
   }
 }
+provide(SelectNodeKey, selectNode)
+provide(ViewOptionsKey, viewOptions)
+provide(PlanKey, plan)
 
-function highlightEl(
-  el: Element | HTMLElement | null,
-  centerMode: CenterMode,
-  highlightMode: HighlightMode
-) {
-  if (!el) {
+function centerNode(nodeId: number): void {
+  const rect = planEl.value.$el.getBoundingClientRect()
+  const treeNode = findTreeNode(nodeId)
+  if (!treeNode) {
     return
   }
-  const parent = planEl.value.$el
-  if (centerMode !== CenterMode.none) {
-    scrollChildIntoParentView(
-      parent,
-      el,
-      centerMode === CenterMode.center,
-      () => {
-        // tslint:disable-next-line:no-bitwise
-        if (highlightMode & HighlightMode.flash) {
-          el.classList.add("flash")
-          setTimeout(() => {
-            el.classList.remove("flash")
-          }, 1000)
-        }
-        /*
-        // tslint:disable-next-line:no-bitwise
-        if (highlightMode & HighlightMode.highlight) {
-          el.classList.add("highlight")
-        }
-        */
-      }
+  let x = -treeNode["x"]
+  let y = -treeNode["y"]
+  let k = scale.value
+  x = x * k + rect.width / 2
+  y = y * k + rect.height / 2
+  d3.select(planEl.value.$el)
+    .transition()
+    .duration(500)
+    .call(
+      zoomListener.transform,
+      d3.zoomIdentity.translate(x - nodeSize.value[0] / 2, y).scale(k)
     )
-  }
+}
+
+function findTreeNode(nodeId: number) {
+  const trees = [layoutRootNode.value].concat(ctes.value)
+  let found: undefined | d3.HierarchyPointNode<Node> = undefined
+  _.each(trees, (tree) => {
+    found = _.find(tree?.descendants(), (o) => o.data.nodeId == nodeId)
+    return !found
+  })
+  return found
 }
 
 const setActiveTab = (tab: string) => {
@@ -277,22 +403,41 @@ const triggersTotalDuration = computed(() => {
   return _.sumBy(planStats.triggers, (o) => o.Time)
 })
 
-function handleScroll(): void {
-  if (!planEl.value) {
-    return
-  }
-  const el: Element = planEl.value.$el as Element
-  new Dragscroll(el)
+function getLayoutExtent(
+  layoutRootNode: d3.HierarchyPointNode<Node>
+): [number, number, number, number] {
+  const minX =
+    _.min(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.x
+      })
+    ) || 0
+
+  const maxX =
+    _.max(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.x
+      })
+    ) || 0
+
+  const minY =
+    _.min(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.y
+      })
+    ) || 0
+
+  const maxY =
+    _.max(
+      _.map(layoutRootNode.descendants(), (childNode) => {
+        return childNode.y
+      })
+    ) || 0
+  return [minX, maxX, minY, maxY]
 }
 
-function onClickCte(subplanName: string): void {
-  const cmp = _.find(planNodes, (o) => {
-    return (
-      o.props.node[NodeProp.SUBPLAN_NAME] &&
-      o.props.node[NodeProp.SUBPLAN_NAME] == subplanName
-    )
-  })
-  cmp && highlightEl(cmp.refs.outerEl, CenterMode.visible, HighlightMode.flash)
+function isNeverExecuted(node: Node): boolean {
+  return !!planStats.executionTime && !node[NodeProp.ACTUAL_LOOPS]
 }
 </script>
 
@@ -362,10 +507,7 @@ function onClickCte(subplanName: string): void {
         v-if="!validationMessage"
       >
         <!-- Plan tab -->
-        <div
-          class="d-flex flex-column flex-grow-1 overflow-hidden"
-          :class="[viewOptions.viewMode, viewOptions.orientation]"
-        >
+        <div class="d-flex flex-column flex-grow-1 overflow-hidden">
           <div
             class="plan-stats flex-shrink-0 d-flex border-bottom border-top form-inline"
             v-if="plan"
@@ -563,46 +705,118 @@ function onClickCte(subplanName: string): void {
               >
                 <pane
                   :size="viewOptions.diagramWidth"
-                  class="d-flex"
-                  v-if="viewOptions.showDiagram && plan"
+                  class="d-flex flex-column"
+                  v-if="plan"
                 >
                   <diagram
                     ref="diagram"
-                    :plan="plan"
                     class="d-flex flex-column flex-grow-1 overflow-hidden plan-diagram"
                   >
                   </diagram>
                 </pane>
-                <pane
-                  ref="planEl"
-                  class="plan d-flex flex-column flex-grow-1 grab-bing overflow-auto"
-                >
-                  <ul class="main-plan p-2 mb-0">
-                    <li>
-                      <plan-node
-                        :node="rootNode"
-                        :plan="plan"
-                        :viewOptions="viewOptions"
-                        v-if="plan && rootNode"
+                <pane ref="planEl" class="plan grab-bing position-relative">
+                  <plan-node-detail
+                    :node="selectedNode"
+                    v-if="selectedNodeId && plan && selectedNode"
+                    :key="selectedNodeId"
+                  ></plan-node-detail>
+                  <svg width="100%" height="100%">
+                    <g :transform="transform">
+                      <!-- Links -->
+                      <path
+                        v-for="(link, index) in toCteLinks"
+                        :key="`linkcte${index}`"
+                        :d="lineGen(link)"
+                        stroke="#B3D7D7"
+                        :stroke-width="
+                          edgeWeight(
+                            link.target.data[NodeProp.ACTUAL_ROWS_REVISED]
+                          )
+                        "
+                        fill="none"
+                      />
+                      <path
+                        v-for="(link, index) in layoutRootNode?.links()"
+                        :key="`link${index}`"
+                        :d="lineGen(link)"
+                        :class="{
+                          'never-executed': isNeverExecuted(link.target.data),
+                        }"
+                        stroke="grey"
+                        :stroke-width="
+                          edgeWeight(
+                            link.target.data[NodeProp.ACTUAL_ROWS_REVISED]
+                          )
+                        "
+                        stroke-linecap="square"
+                        fill="none"
+                      />
+                      <foreignObject
+                        v-for="(item, index) in layoutRootNode?.descendants()"
+                        :key="index"
+                        :x="item.x"
+                        :y="item.y"
+                        :width="nodeSize[0]"
+                        height="1"
                         ref="root"
                       >
-                      </plan-node>
-                    </li>
-                  </ul>
-                  <ul
-                    class="init-plans p-2 mb-0"
-                    v-if="plan && plan.ctes && plan.ctes.length"
-                  >
-                    <li v-for="node in plan.ctes" :key="node.nodeId">
-                      <plan-node
-                        :node="node"
-                        :plan="plan"
-                        :viewOptions="viewOptions"
-                        ref="root"
-                      >
-                      </plan-node>
-                    </li>
-                  </ul>
+                        <plan-node
+                          :node="item.data"
+                          class="d-flex justify-content-center"
+                        />
+                      </foreignObject>
+                      <g v-for="cte in ctes" :key="cte.data.nodeId">
+                        <rect
+                          :x="getLayoutExtent(cte)[0] - padding / 4"
+                          :y="getLayoutExtent(cte)[2] - padding / 2"
+                          :width="
+                            getLayoutExtent(cte)[1] +
+                            nodeSize[0] -
+                            getLayoutExtent(cte)[0] +
+                            padding / 2
+                          "
+                          :height="
+                            getLayoutExtent(cte)[3] -
+                            getLayoutExtent(cte)[2] +
+                            nodeSize[1]
+                          "
+                          stroke="#cfcfcf"
+                          stroke-width="2"
+                          fill="#cfcfcf"
+                          fill-opacity="10%"
+                          rx="5"
+                          ry="5"
+                        ></rect>
+                        <path
+                          v-for="(link, index) in cte.links()"
+                          :key="`link${index}`"
+                          :d="lineGen(link)"
+                          stroke="grey"
+                          :stroke-width="
+                            edgeWeight(
+                              link.target.data[NodeProp.ACTUAL_ROWS_REVISED]
+                            )
+                          "
+                          stroke-linecap="square"
+                          fill="none"
+                        />
+                        <foreignObject
+                          v-for="(item, index) in cte.descendants()"
+                          :key="index"
+                          :x="item.x"
+                          :y="item.y"
+                          :width="nodeSize[0]"
+                          height="1"
+                          ref="root"
+                        >
+                          <plan-node
+                            :node="item.data"
+                            class="d-flex justify-content-center"
+                          />
+                        </foreignObject>
+                      </g>
+                    </g>
+                  </svg>
                 </pane>
               </splitpanes>
             </div>
@@ -620,74 +834,6 @@ function onClickCte(subplanName: string): void {
                   <span aria-hidden="true">&times;</span>
                 </button>
               </div>
-              <div class="form-check">
-                <input
-                  id="showDiagram"
-                  type="checkbox"
-                  v-model="viewOptions.showDiagram"
-                  class="form-check-input"
-                />
-                <label for="showDiagram" class="form-check-label"
-                  ><font-awesome-icon icon="align-left"></font-awesome-icon>
-                  Diagram</label
-                >
-              </div>
-              <hr />
-              <label class="text-uppercase">Density</label>
-              <div class="form-group">
-                <div class="btn-group btn-group-sm">
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{ active: viewOptions.viewMode == ViewMode.FULL }"
-                    v-on:click="viewOptions.viewMode = ViewMode.FULL"
-                  >
-                    full
-                  </button>
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{
-                      active: viewOptions.viewMode == ViewMode.COMPACT,
-                    }"
-                    v-on:click="viewOptions.viewMode = ViewMode.COMPACT"
-                  >
-                    compact
-                  </button>
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{ active: viewOptions.viewMode == ViewMode.DOT }"
-                    v-on:click="viewOptions.viewMode = ViewMode.DOT"
-                  >
-                    dot
-                  </button>
-                </div>
-              </div>
-              <hr />
-              <label class="text-uppercase">Orientation</label>
-              <div class="form-group">
-                <div class="btn-group btn-group-sm">
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{
-                      active: viewOptions.orientation == Orientation.TWOD,
-                    }"
-                    v-on:click="viewOptions.orientation = Orientation.TWOD"
-                  >
-                    <font-awesome-icon icon="sitemap"></font-awesome-icon>
-                    2D
-                  </button>
-                  <button
-                    class="btn btn-outline-secondary"
-                    :class="{
-                      active: viewOptions.orientation == Orientation.CLASSIC,
-                    }"
-                    v-on:click="viewOptions.orientation = Orientation.CLASSIC"
-                  >
-                    <font-awesome-icon icon="list"></font-awesome-icon>
-                    classic
-                  </button>
-                </div>
-              </div>
-              <hr />
               <label class="text-uppercase">Graph metric</label>
               <div class="form-group">
                 <div class="btn-group btn-group-sm">
@@ -749,7 +895,7 @@ function onClickCte(subplanName: string): void {
           <div class="overflow-auto flex-grow-1">
             <pre
               class="small p-2 mb-0"
-            ><code class="hljs" v-html="json_(planSource)"></code></pre>
+            ><code v-html="json_(planSource)"></code></pre>
           </div>
           <copy :content="planSource" />
         </div>
@@ -763,7 +909,7 @@ function onClickCte(subplanName: string): void {
           <div class="overflow-auto flex-grow-1">
             <pre
               class="small p-2 mb-0"
-            ><code class="hljs" v-html="pgsql_(queryText)"></code></pre>
+            ><code v-html="pgsql_(queryText)"></code></pre>
           </div>
         </div>
         <copy :content="queryText" />
@@ -772,7 +918,7 @@ function onClickCte(subplanName: string): void {
         class="tab-pane flex-grow-1 overflow-auto"
         :class="{ 'show active': activeTab === 'stats' }"
       >
-        <stats :plan="plan" v-if="plan"></stats>
+        <stats v-if="plan"></stats>
       </div>
     </div>
   </div>
@@ -783,4 +929,12 @@ function onClickCte(subplanName: string): void {
 @import "../assets/scss/pev2";
 @import "splitpanes/dist/splitpanes.css";
 @import "highlight.js/scss/stackoverflow-light.scss";
+
+path {
+  stroke-linecap: butt;
+  &.never-executed {
+    stroke-dasharray: 0.5em;
+    stroke-opacity: 0.5;
+  }
+}
 </style>

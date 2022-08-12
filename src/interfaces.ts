@@ -1,10 +1,8 @@
 import type {
   BufferLocation,
   HighlightType,
-  Orientation,
   SortGroupsProp,
   SortSpaceMemoryProp,
-  ViewMode,
 } from "@/enums"
 
 export interface IPlan {
@@ -67,7 +65,8 @@ import { EstimateDirection, NodeProp } from "@/enums"
 
 // Class to create nodes when parsing text
 export class Node {
-  nodeId!: number;
+  nodeId!: number
+  size!: [number, number];
   ["Options"]?: Options;
   ["Timing"]?: Timing;
   ["Settings"]?: Settings;
@@ -116,6 +115,7 @@ export class Node {
     | string
     | string[]
     | undefined
+    | [number, number]
   constructor(type?: string) {
     if (!type) {
       return
@@ -236,17 +236,10 @@ export type ViewOptions = {
   showHighlightBar: boolean
   showPlanStats: boolean
   highlightType: HighlightType
-  viewMode: ViewMode
-  orientation: Orientation
-  showDiagram: boolean
   diagramWidth: number
 }
 
 export interface JIT {
   ["Timing"]: Timing
   [key: string]: number | Timing
-}
-
-export type Events = {
-  clickcte: string
 }

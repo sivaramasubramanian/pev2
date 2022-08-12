@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import * as _ from "lodash"
-import type { Emitter } from "mitt"
+import _ from "lodash"
 import {
   computed,
   inject,
@@ -11,26 +10,34 @@ import {
   ref,
   watch,
 } from "vue"
+import type { Ref } from "vue"
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"
 import { blocks, duration, rows, factor } from "@/filters"
 import { EstimateDirection, BufferLocation, NodeProp, Metric } from "../enums"
 import { scrollChildIntoParentView } from "@/services/help-service"
-import type { Events, IPlan, Node } from "@/interfaces"
+import type { IPlan, Node } from "@/interfaces"
+import {
+  HighlightedNodeIdKey,
+  PlanKey,
+  SelectedNodeIdKey,
+  SelectNodeKey,
+} from "@/symbols"
 
 import tippy, { createSingleton } from "tippy.js"
 import type { CreateSingletonInstance, Instance } from "tippy.js"
 
 type Row = [number, Node, boolean, number[]]
 
-interface Props {
-  plan: IPlan
-}
-const props = defineProps<Props>()
+const plan = inject(PlanKey) as Ref<IPlan>
+
 const container = ref(null) // The container element
 
-const selectedNode = inject("selectedNode")
-const highlightedNode = inject("highlightedNode")
-const emitter = inject<Emitter<Events>>("emitter")
+const selectedNodeId = inject(SelectedNodeIdKey)
+const selectNode = inject(SelectNodeKey)
+if (!selectNode) {
+  throw new Error(`Could not resolve ${SelectNodeKey.description}`)
+}
+const highlightedNodeId = inject(HighlightedNodeIdKey)
 
 const rowRefs: Element[] = []
 
@@ -49,9 +56,9 @@ onBeforeMount((): void => {
   if (savedOptions) {
     _.assignIn(viewOptions, JSON.parse(savedOptions))
   }
-  flatten(plans[0], 0, props.plan.content.Plan, true, [])
+  flatten(plans[0], 0, plan.value.content.Plan, true, [])
 
-  _.each(props.plan.ctes, (cte) => {
+  _.each(plan.value.ctes, (cte) => {
     const flat: Row[] = []
     flatten(flat, 0, cte, true, [])
     plans.push(flat)
@@ -59,7 +66,7 @@ onBeforeMount((): void => {
 
   // switch to the first buffers tab if data not available for the currently
   // chosen one
-  const planBufferLocation = _.keys(props.plan.planStats.maxBlocks)
+  const planBufferLocation = _.keys(plan.value.planStats.maxBlocks)
   if (_.indexOf(planBufferLocation, viewOptions.buffersMetric) === -1) {
     viewOptions.buffersMetric = _.min(planBufferLocation) as BufferLocation
   }
@@ -291,9 +298,9 @@ function isCTE(node: Node): boolean {
 }
 
 watch(
-  () => selectedNode,
+  () => selectedNodeId?.value,
   (newVal) => {
-    if (!container.value) {
+    if (!container.value || !newVal) {
       return
     }
     scrollChildIntoParentView(container.value, rowRefs[newVal as number], false)
@@ -415,14 +422,17 @@ function setRowRef(nodeId: number, el: Element) {
       </div>
     </div>
     <div class="overflow-auto flex-grow-1" ref="container">
-      <table class="m-1" v-if="dataAvailable">
+      <table
+        class="m-1"
+        v-if="dataAvailable"
+        :class="{ highlight: !!highlightedNodeId }"
+      >
         <tbody v-for="(flat, index) in plans" :key="index">
           <tr v-if="index === 0 && plans.length > 1">
             <th colspan="3" class="subplan">Main Query Plan</th>
           </tr>
           <template v-for="(row, index) in flat" :key="index">
             <tr v-if="row[1][NodeProp.SUBPLAN_NAME]">
-              <td v-if="!isCTE(row[1])"></td>
               <td
                 class="subplan pr-2"
                 :class="{ 'font-weight-bold': isCTE(row[1]) }"
@@ -431,7 +441,7 @@ function setRowRef(nodeId: number, el: Element) {
                 <span class="tree-lines">
                   <template v-for="i in _.range(row[0])">
                     <template v-if="_.indexOf(row[3], i) != -1">│</template
-                    ><template v-else-if="i !== 0">&nbsp;</template> </template
+                    ><template v-else-if="i !== 0">&emsp;</template> </template
                   ><template v-if="index !== 0">{{
                     row[2] ? "└" : "├"
                   }}</template>
@@ -439,7 +449,7 @@ function setRowRef(nodeId: number, el: Element) {
                 <a
                   class="font-italic text-reset"
                   href=""
-                  @click.prevent="emitter?.emit('clickcte', row[1][NodeProp.SUBPLAN_NAME] as string)"
+                  @click.prevent="selectNode(row[1].nodeId, true)"
                 >
                   {{ row[1][NodeProp.SUBPLAN_NAME] }}
                 </a>
@@ -448,8 +458,8 @@ function setRowRef(nodeId: number, el: Element) {
             <tr
               class="no-focus-outline node"
               :class="{
-                selected: row[1].nodeId === selectedNode,
-                highlight: row[1].nodeId === highlightedNode,
+                selected: row[1].nodeId === selectedNodeId,
+                highlight: row[1].nodeId === highlightedNodeId,
               }"
               :data-tippy-content="getTooltipContent(row[1])"
               :ref="
@@ -457,28 +467,27 @@ function setRowRef(nodeId: number, el: Element) {
                   setRowRef(row[1].nodeId, el as Element)
                 }
               "
-              @mouseenter="highlightedNode = row[1].nodeId"
-              @mouseleave="highlightedNode = null"
+              @mouseenter="highlightedNodeId = row[1].nodeId"
+              @mouseleave="highlightedNodeId = undefined"
+              @click.prevent="selectNode(row[1].nodeId, true)"
             >
               <td class="node-index">
-                <a
-                  class="font-weight-normal small"
-                  :href="'#plan/node/' + row[1].nodeId"
-                  >#{{ row[1].nodeId }}</a
-                >
+                <span class="font-weight-normal small"
+                  >#{{ row[1].nodeId }}
+                </span>
               </td>
               <td class="node-type pr-2">
                 <span class="tree-lines">
                   <template v-for="i in _.range(row[0])">
                     <template v-if="_.indexOf(row[3], i) != -1">│</template
-                    ><template v-else-if="i !== 0">&nbsp;</template> </template
+                    ><template v-else-if="i !== 0">&emsp;</template> </template
                   ><template v-if="index !== 0">
                     <template v-if="!row[1][NodeProp.SUBPLAN_NAME]">{{
                       row[2] ? "└" : "├"
                     }}</template
                     ><template v-else>
                       <template v-if="!row[2]">│</template
-                      ><template v-else>&nbsp;</template>
+                      ><template v-else>&emsp;</template>
                     </template>
                   </template>
                 </span>

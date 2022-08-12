@@ -1,4 +1,6 @@
+import _ from "lodash"
 import type { IPlan, Node } from "@/interfaces"
+import { NodeProp } from "@/enums"
 
 export class HelpService {
   public nodeId = 0
@@ -73,6 +75,9 @@ export function scrollChildIntoParentView(
   shouldCenter: boolean,
   done?: () => void
 ) {
+  if (!child) {
+    return
+  }
   // Where is the parent on page
   const parentRect = parent.getBoundingClientRect()
   // Where is the child
@@ -233,14 +238,53 @@ export function splitBalanced(input: string, split: string) {
 }
 
 export function findNodeById(plan: IPlan, id: number): Node | undefined {
-  let o = plan.content.Plan
-  if (o && o.Plans) {
-    o.Plans.some(function iter(child: Node): boolean | undefined {
+  let o: Node | undefined = undefined
+  const root = plan.content.Plan
+  if (root.nodeId == id) {
+    return root
+  }
+  if (root && root.Plans) {
+    root.Plans.some(function iter(child: Node): boolean | undefined {
       if (child.nodeId === id) {
         o = child
         return true
       }
       return child.Plans && child.Plans.some(iter)
+    })
+    if (!o && plan.ctes) {
+      _.each(plan.ctes, (cte) => {
+        if (cte.nodeId == id) {
+          o = cte
+          return false
+        } else if (cte.Plans) {
+          cte.Plans.some(function iter(child: Node): boolean | undefined {
+            if (child.nodeId === id) {
+              o = child
+              return true
+            }
+            return child.Plans && child.Plans.some(iter)
+          })
+          if (o) {
+            return false
+          }
+        }
+      })
+    }
+  }
+  return o
+}
+
+export function findNodeBySubplanName(
+  plan: IPlan,
+  subplanName: string
+): Node | undefined {
+  let o: Node | undefined = undefined
+  if (plan.ctes) {
+    _.each(plan.ctes, (cte) => {
+      if (cte[NodeProp.SUBPLAN_NAME] == "CTE " + subplanName) {
+        o = cte
+        return false
+      }
     })
   }
   return o

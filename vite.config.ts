@@ -10,7 +10,7 @@ const build = process.env.LIB
       lib: {
         entry: path.resolve(__dirname, "src/components/index.ts"),
         name: "pev2",
-        fileName: (format: string) => `pev2.${format}.js`,
+        fileName: "pev2",
       },
       rollupOptions: {
         external: ["vue"],
@@ -32,9 +32,6 @@ const build = process.env.LIB
       brotliSize: false,
       rollupOptions: {
         inlineDynamicImports: true,
-        output: {
-          manualChunks: () => "everything.js",
-        },
       },
     }
 
@@ -58,5 +55,6 @@ export default defineConfig({
   },
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+    "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV),
   },
 })

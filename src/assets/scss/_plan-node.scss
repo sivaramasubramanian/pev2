@@ -6,23 +6,12 @@ $bg-color: #fff;
   text-decoration: none;
   color: $text-color;
   display: inline-block;
-  transition: all 0.1s;
   position: relative;
   font-size: $font-size-sm;
   margin-bottom: 4px;
   overflow-wrap: break-word;
   word-wrap: break-word;
-
-  width: 400px;
-  .twod & {
-    width: 240px;
-  }
-  .twod.compact & {
-    width: 140px;
-  }
-  .twod.dot & {
-    width: $compact-width;
-  }
+  width: 95%;
 
   .plan-node-body {
     position: relative;
@@ -30,10 +19,8 @@ $bg-color: #fff;
     border-radius: $border-radius-base;
     background-color: $plan-node-bg;
     box-shadow: 1px 1px 3px 0px rgba(0,0,0,0.1);
-    cursor: auto;
 
     .header.card-body {
-      cursor: pointer;
       &:hover {
         background-color: $gray-lightest;
       }
@@ -153,26 +140,8 @@ $bg-color: #fff;
     }
   }
 
-  .collapse-handle {
-    cursor: pointer;
-    position: absolute;
-    z-index: 1;
-    bottom: 0;
-    right: 0;
-    display: none;
-    background-color: rgba(255, 255, 255, 0.7);
-  }
-
-  &:hover .collapse-handle {
-    display: block;
-  }
-
   &.never-executed .plan-node-body {
     @extend %bg-hatched;
-  }
-
-  &.flash .plan-node-body {
-    animation: flash 1s;
   }
 
   .workers {
@@ -211,6 +180,34 @@ $bg-color: #fff;
       }
     }
   }
+
+  .subplan-name {
+    background-color: #B3D7D7;
+    border-radius: $border-radius-base;
+  }
+
+  button {
+    .fa-chevron-right {
+      display: inline-block;
+    }
+    .fa-chevron-down {
+      display: none;
+    }
+  }
+  button[aria-expanded='true'] {
+    .fa-chevron-right {
+      display: none !important;
+    }
+    .fa-chevron-down {
+      display: inline-block !important;
+    }
+  }
+
+  &.plan-node-detail .text-truncate {
+    overflow: initial;
+    white-space: initial;
+    text-overflow: initial;
+  }
 }
 
 .node-bar-container {
@@ -234,34 +231,4 @@ $bg-color: #fff;
 .node-bar-label {
   text-align: left;
   display: block;
-}
-
-.detailed {
-  width: 400px !important;
-}
-
-ul.node-children.collapsed {
-  .plan-node,
-  .plan-node-body {
-    width: $compact-width !important;
-  }
-  .plan-node {
-    display: block;
-    .plan-node-body {
-      height: math.div($compact-width, 3);
-      * {
-        display: none;
-      }
-    }
-    &:hover .collapse-handle {
-      display: none;
-    }
-  }
-
-  .classic .plan & li::before {
-    top: 7px;
-  }
-  .classic .plan & li:last-child::after {
-    height: 14px;
-  }
 }

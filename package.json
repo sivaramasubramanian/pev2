@@ -1,16 +1,16 @@
 {
   "name": "pev2",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "homepage": "https://github.com/dalibo/pev2",
   "license": "PostgreSQL license",
   "files": [
     "dist"
   ],
-  "main": "./dist/pev.umd.js",
-  "module": "./dist/pev.umd.js",
+  "main": "./dist/pev2.umd.js",
+  "module": "./dist/pev2.mjs",
   "exports": {
     ".": {
-      "import": "./dist/pev2.es.js",
+      "import": "./dist/pev2.mjs",
       "require": "./dist/pev2.umd.js"
     },
     "./dist/style.css": "./dist/style.css"
@@ -31,16 +31,16 @@
     "@fortawesome/free-regular-svg-icons": "^6.1.1",
     "@fortawesome/free-solid-svg-icons": "^6.1.1",
     "@fortawesome/vue-fontawesome": "^3.0.0-5",
+    "@types/d3": "^7.4.0",
     "@types/lodash": "^4.14.180",
     "bootstrap": "^4.6.1",
     "clarinet": "^0.12.5",
+    "d3": "^7.4.4",
     "highlight.js": "^11.5.0",
     "humanize-duration": "^3.27.1",
     "lodash": "^4.17.21",
-    "mitt": "^3.0.0",
     "sass": "^1.49.9",
     "splitpanes": "^3.1.0",
-    "stream": "^0.0.2",
     "vue": "^3.2.31",
     "vue-clipboard3": "^2.0.0",
     "vue-tippy": "^6.0.0-alpha.57"
@@ -51,21 +51,23 @@
     "@types/jest": "^27.4.1",
     "@types/node": "^16.11.26",
     "@types/splitpanes": "^2.2.1",
-    "@vitejs/plugin-vue": "^2.2.2",
+    "@vitejs/plugin-vue": "^3.0.1",
     "@vue/eslint-config-prettier": "^7.0.0",
     "@vue/eslint-config-typescript": "^10.0.0",
     "@vue/tsconfig": "^0.1.3",
+    "emitter": "^0.0.5",
     "eslint": "^8.5.0",
     "eslint-plugin-vue": "^8.5.0",
     "husky": "^7.0.0",
     "jest": "^27.5.1",
     "lint-staged": "^12.4.0",
     "prettier": "^2.5.1",
+    "stream": "^0.0.2",
     "ts-jest": "^27.1.3",
     "ts-node": "^10.7.0",
     "typescript": "~4.5.5",
-    "vite": "^2.8.4",
-    "vite-plugin-singlefile": "^0.7.1",
+    "vite": "^3.0.5",
+    "vite-plugin-singlefile": "^0.11.0",
     "vue-tsc": "^0.31.4"
   },
   "lint-staged": {

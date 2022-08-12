@@ -67,18 +67,6 @@ $buffers-colors: (
   }
 }
 
-@keyframes flash {
-  0% {
-    background: $plan-node-bg;
-  }
-  20% {
-    background: $flash-color;
-  }
-  100% {
-    background: $plan-node-bg;
-  }
-}
-
 /*
  * Used with @extend in .plan-node.never-executed
  */
@@ -97,12 +85,4 @@ $buffers-colors: (
 .border-dashed {
   border-style: dashed !important;
   background-color: transparent !important;
-}
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  text-overflow: ellipsis;
-  overflow: hidden;
 }

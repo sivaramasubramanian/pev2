@@ -5,8 +5,17 @@
   }
   // make sure diagram right column takes as much width as possible
   table tr td:nth-child(3) {
-    width: 90%;
+    width: 50%;
   }
+
+  table tr td:nth-child(2) {
+    max-width: 0;
+    width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   font-family: $font-family-sans-serif;
 
   .legend ul li {
@@ -42,9 +51,10 @@
     font-size: $font-size-base;
   }
 
-  tr.highlight {
-    box-shadow: 1px 1px 5px 0px rgba(0,0,0,0.4);
+  tr.node {
+    cursor: pointer;
   }
+
   tr.selected {
     outline: 1px solid $highlight-color;
     box-shadow: 0px 0px 5px 2px rgba($highlight-color,0.4);
@@ -52,6 +62,15 @@
   tr.highlight,
   tr.selected {
     background-color: white;
+  }
+
+  table.highlight {
+    tr {
+      opacity: 50%;
+      &.highlight {
+        opacity: 100%;
+      }
+    }
   }
 
   .tree-lines {

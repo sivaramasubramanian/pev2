@@ -37,27 +37,10 @@ export enum EstimateDirection {
   none = 3,
 }
 
-export class ViewMode {
-  public static FULL = "full"
-  public static COMPACT = "compact"
-  public static DOT = "dot"
-}
-
-export class Orientation {
-  public static TWOD = "twod"
-  public static CLASSIC = "classic"
-}
-
 export enum CenterMode {
   center,
   visible,
   none,
-}
-
-export enum HighlightMode {
-  flash = 1,
-  highlight = 2,
-  showdetails = 4,
 }
 
 export enum NodeProp {
