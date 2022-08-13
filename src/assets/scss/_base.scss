@@ -106,3 +106,10 @@ $buffers-colors: (
   text-overflow: ellipsis;
   overflow: hidden;
 }
+
+ul.list-group{
+  max-height: 60vh;
+  margin-bottom: 10px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
