@@ -132,7 +132,6 @@ function loadPlan(plan?: Plan, index?: number) {
 
   if (index != null && index != undefined) {
     currentPlanIndex.value = index
-    console.log(index, currentPlanIndex)
   } else {
     currentPlanIndex.value = -1
   }
@@ -277,7 +276,7 @@ function handleDrop(event: DragEvent) {
           </form>
         </div>
 
-        <div class="col-sm-5 mb-4">
+        <div class="col-sm-5 mb-4 mt-4 mt-md-0">
           <label> Saved Plans </label>
           <ul class="list-group" v-cloak>
             <li
