@@ -14,7 +14,7 @@ const props = defineProps<Props>()
       <div v-if="props?.title" class="text-center ml-auto">
         Plan: {{ props?.title }}
       </div>
-      <v-link class="btn btn-secondary ml-auto" to="/">New Plan</v-link>
+      <v-link class="btn btn-secondary ml-auto" to="/">Home</v-link>
       <v-link class="btn btn-link" to="/about">About</v-link>
     </div>
     <slot></slot>

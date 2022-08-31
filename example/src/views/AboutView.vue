@@ -26,6 +26,16 @@ import MainLayout from "../layouts/MainLayout.vue"
         and relevant pull requests pending.
       </p>
 
+      <p>
+        After that, PEV2 was developed by
+        <a href="https://dalibo.com">Dalibo</a> <br />
+        But recently (~ August 2022) they moved to storing the saved plans in
+        their Database without any support for local storage. <br />
+        So I have
+        <a href="https://github.com/sivaramasubramanian/pev2">forked</a> this to
+        support saving plans in local storage.
+      </p>
+
       <h2>Usage tips</h2>
       <p>
         To get the most out of it, we recommend generating a query plan using
@@ -40,18 +50,11 @@ import MainLayout from "../layouts/MainLayout.vue"
       </p>
 
       <h2>Help improve PEV2</h2>
-      <p>You can help us.</p>
-
       <p>
-        Report issues or contribute to the code on
-        <a href="https://github.com/dalibo/pev2">Github</a>.
+        Report issues or contribute to the code on Github for this
+        <a href="https://github.com/sivaramasubramanian/pev2">fork</a> or the
+        original <a href="https://github.com/dalibo/pev2">PEV2</a>.
       </p>
-
-      <hr />
-      <div class="text-center text-muted">
-        <b>pev2</b> is brought to you by
-        <a href="https://dalibo.com">Dalibo</a>
-      </div>
     </div>
   </main-layout>
 </template>
