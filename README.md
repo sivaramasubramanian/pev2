@@ -1,6 +1,8 @@
 PEV2: A VueJS component to show a graphical vizualization of a PostgreSQL execution
 plan.
 
+Note: This is a fork to support saving plans in local storage, the below README was from the original [PEV2](https://www.github.com/dalibo/pev2)
+
 # Usage
 
 To use the explain vizualizer you can choose one of the following options:
