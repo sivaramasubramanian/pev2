@@ -111,6 +111,8 @@ export enum NodeProp {
   FULL_SORT_GROUPS = "Full-sort Groups",
   PRE_SORTED_GROUPS = "Pre-sorted Groups",
   PRESORTED_KEY = "Presorted Key",
+  CSTORE_COMPUTATION_TYPE = "Cstore Computation Type",
+  CSTORE_PROJECTION_TYPE = "Cstore Projection Type",
 
   // computed by pev
   NODE_ID = "nodeId",
