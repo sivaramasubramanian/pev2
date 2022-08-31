@@ -26,6 +26,7 @@ import type {
   Settings,
 } from "@/interfaces"
 import Copy from "@/components/Copy.vue"
+import Format from "@/components/Format.vue"
 import Diagram from "@/components/Diagram.vue"
 import PlanNode from "@/components/PlanNode.vue"
 import Stats from "@/components/Stats.vue"
@@ -161,6 +162,10 @@ watch(viewOptions, onViewOptionsChanged)
 
 function onViewOptionsChanged() {
   localStorage.setItem("viewOptions", JSON.stringify(viewOptions))
+}
+
+function onQueryFormat(formattedQuery: string) {
+  queryText.value = formattedQuery
 }
 
 function onHashChange(): void {
@@ -767,6 +772,7 @@ function onClickCte(subplanName: string): void {
           </div>
         </div>
         <copy :content="queryText" />
+        <format :content="queryText" @formatted="onQueryFormat" />
       </div>
       <div
         class="tab-pane flex-grow-1 overflow-auto"
