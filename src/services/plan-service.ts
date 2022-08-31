@@ -189,6 +189,7 @@ export class PlanService {
       // since time is reported for an invidual loop, actual duration must be adjusted by number of loops
       // number of workers is also taken into account
       const workers = (node[NodeProp.WORKERS_PLANNED_BY_GATHER] || 0) + 1
+      node[NodeProp.ACTUAL_LOOPS] = node[NodeProp.ACTUAL_LOOPS] || 1
       node[NodeProp.ACTUAL_TOTAL_TIME] =
         ((node[NodeProp.ACTUAL_TOTAL_TIME] as number) *
           (node[NodeProp.ACTUAL_LOOPS] as number)) /
@@ -499,6 +500,8 @@ export class PlanService {
       // tslint:disable-next-line:max-line-length
       const actualRegex =
         "(?:actual\\stime=(\\d+\\.\\d+)\\.\\.(\\d+\\.\\d+)\\srows=(\\d+)\\sloops=(\\d+)|actual\\srows=(\\d+)\\sloops=(\\d+)|(never\\s+executed))"
+      const cstoreActualRegex =
+        "(?:time=(\\d+.\\d+ms)\\)\\s+\\(nrows=(\\d+)\\s+computation=(serial|parallel)\\s+projection=(serial|parallel))"
       const optionalGroup = "?"
 
       const emptyLineMatches = new RegExp(emptyLineRegex).exec(line)
@@ -527,6 +530,10 @@ export class PlanService {
        * 19: actual_time_last
        * 20: actual_rows
        * 21: actual_loops
+       * 25: cstore actual_time
+       * 26: cstore actual_rows
+       * 27: cstore computation_type
+       * 28: cstore projection_type
        */
       const nodeRegex = new RegExp(
         prefixRegex +
@@ -548,6 +555,12 @@ export class PlanService {
           nonCapturingGroupOpen +
           openParenthesisRegex +
           actualRegex +
+          closeParenthesisRegex +
+          nonCapturingGroupClose +
+          "|" +
+          nonCapturingGroupOpen +
+          openParenthesisRegex +
+          cstoreActualRegex +
           closeParenthesisRegex +
           nonCapturingGroupClose +
           nonCapturingGroupClose +
@@ -639,6 +652,16 @@ export class PlanService {
           newNode[NodeProp.ACTUAL_TOTAL_TIME] = parseFloat(
             nodeMatches[8] || nodeMatches[19]
           )
+        }
+        if (nodeMatches[25] && nodeMatches[26]) {
+          newNode[NodeProp.ACTUAL_TOTAL_TIME] = parseFloat(
+            nodeMatches[25].replace("ms", "")
+          )
+          newNode[NodeProp.ACTUAL_ROWS] = parseInt(nodeMatches[26])
+        }
+        if (nodeMatches[27] && nodeMatches[28]) {
+          newNode[NodeProp.CSTORE_COMPUTATION_TYPE] = nodeMatches[27]
+          newNode[NodeProp.CSTORE_PROJECTION_TYPE] = nodeMatches[28]
         }
 
         if (
@@ -813,6 +836,9 @@ export class PlanService {
 
         const info = extraMatches[2].split(/: (.+)/).filter((x) => x)
         if (!info[1]) {
+          if (/.*=.*/.test(info[0])) {
+            element["Extra details"] = info[0]
+          }
           return
         }
 

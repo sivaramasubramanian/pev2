@@ -92,6 +92,8 @@ export class Node {
   [NodeProp.PLANNER_ESTIMATE_FACTOR]?: number;
   [NodeProp.INDEX_NAME]?: string;
   [NodeProp.NODE_TYPE]: string;
+  [NodeProp.CSTORE_COMPUTATION_TYPE]?: string;
+  [NodeProp.CSTORE_PROJECTION_TYPE]?: string;
   [NodeProp.PARALLEL_AWARE]: boolean;
   [NodeProp.PLANS]: Node[];
   [NodeProp.PLAN_ROWS]: number;
