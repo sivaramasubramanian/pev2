@@ -198,12 +198,15 @@ export class PlanService {
         ((node[NodeProp.ACTUAL_STARTUP_TIME] as number) *
           (node[NodeProp.ACTUAL_LOOPS] as number)) /
         workers
-      node[NodeProp.EXCLUSIVE_DURATION] = node[NodeProp.ACTUAL_TOTAL_TIME]
 
-      const duration =
-        (node[NodeProp.EXCLUSIVE_DURATION] as number) -
-        this.childrenDuration(node, 0)
-      node[NodeProp.EXCLUSIVE_DURATION] = duration > 0 ? duration : 0
+      if (_.isUndefined(node[NodeProp.EXCLUSIVE_DURATION])) {
+        node[NodeProp.EXCLUSIVE_DURATION] = node[NodeProp.ACTUAL_TOTAL_TIME]
+
+        const duration =
+          (node[NodeProp.EXCLUSIVE_DURATION] as number) -
+          this.childrenDuration(node, 0)
+        node[NodeProp.EXCLUSIVE_DURATION] = duration > 0 ? duration : 0
+      }
     }
 
     if (node[NodeProp.TOTAL_COST]) {
@@ -657,6 +660,8 @@ export class PlanService {
           newNode[NodeProp.ACTUAL_TOTAL_TIME] = parseFloat(
             nodeMatches[25].replace("ms", "")
           )
+          newNode[NodeProp.EXCLUSIVE_DURATION] =
+            newNode[NodeProp.ACTUAL_TOTAL_TIME]
           newNode[NodeProp.ACTUAL_ROWS] = parseInt(nodeMatches[26])
         }
         if (nodeMatches[27] && nodeMatches[28]) {
