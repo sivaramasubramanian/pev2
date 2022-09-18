@@ -439,7 +439,12 @@ function setRowRef(nodeId: number, el: Element) {
                 <a
                   class="font-italic text-reset"
                   href=""
-                  @click.prevent="emitter?.emit('clickcte', row[1][NodeProp.SUBPLAN_NAME] as string)"
+                  @click.prevent="
+                    emitter?.emit(
+                      'clickcte',
+                      row[1][NodeProp.SUBPLAN_NAME] as string
+                    )
+                  "
                 >
                   {{ row[1][NodeProp.SUBPLAN_NAME] }}
                 </a>
