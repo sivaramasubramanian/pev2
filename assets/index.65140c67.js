@@ -6744,7 +6744,7 @@ LIMIT 1;
     "Execution Time": 2.121
   }
 ]`,pe1="INSERT INTO brut.emp VALUES (10000, NOW(), 'pouet');",he1={class:"container"},me1=N("div",{class:"alert alert-warning"},[R(`
-        This is the adapted from
+        This is a tool to visualize Postgres EXPLAIN plans. It is adapted from
         `),N("a",{href:"https://github.com/dalibo/pev2"},"PEV2"),R(`. It is serverless and
         stores your plans in your browser local storage only.
       `)],-1),ve1=R(),Ce1={class:"row form-group"},ge1={class:"col d-flex"},Le1=N("div",{class:"text-muted"},[R(`
