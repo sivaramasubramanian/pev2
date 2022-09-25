@@ -50,7 +50,7 @@
     "@rushstack/eslint-patch": "^1.1.0",
     "@types/humanize-duration": "^3.27.1",
     "@types/jest": "^27.4.1",
-    "@types/node": "^16.11.26",
+    "@types/node": "^18.7.21",
     "@types/splitpanes": "^2.2.1",
     "@vitejs/plugin-vue": "^2.2.2",
     "@vue/eslint-config-prettier": "^7.0.0",
