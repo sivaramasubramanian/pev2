@@ -185,7 +185,7 @@ function handleDrop(event: DragEvent) {
   <main-layout>
     <div class="container">
       <div class="alert alert-warning">
-        This is the adapted from
+        This is a tool to visualize Postgres EXPLAIN plans. It is adapted from
         <a href="https://github.com/dalibo/pev2">PEV2</a>. It is serverless and
         stores your plans in your browser local storage only.
       </div>
