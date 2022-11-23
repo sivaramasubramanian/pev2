@@ -33,7 +33,7 @@
     "@fortawesome/vue-fontawesome": "^3.0.0-5",
     "@sqltools/formatter": "^1.2.3",
     "@types/lodash": "^4.14.180",
-    "bootstrap": "^4.6.1",
+    "bootstrap": "^5.2.3",
     "clarinet": "^0.12.5",
     "highlight.js": "^11.5.0",
     "humanize-duration": "^3.27.3",
